@@ -373,7 +373,9 @@ _pueSof:
 _processUsbEventTxComplete:
 	call	_DequeueUsbByteA
 	ld	c, 0
-	ld	hl, usbTxPipe0 + usbPipeDataProcCb
+	ld	hl, (usbTxPipe0VarsPtr)
+	ld	de, usbPipeDataProcCb
+	add	hl, de
 @:	or	a
 	ret	z
 	rra
@@ -394,6 +396,46 @@ _pueTxCompleteProcess:
 	ex	de, hl
 	ld	a, c
 	call	CallHL
+	pop	hl
+	pop	af
+	ret
+
+
+_processUsbEventRxComplete:
+	call	_DequeueUsbByteA
+	ld	c, 0
+	ld	hl, (usbRxPipe0VarsPtr)
+@:	or	a
+	ret	z
+	rra
+	call	c, _pueRxCompleteProcess
+	inc	c
+	ld	de, usbPipeVarsSize
+	add	hl, de
+	jr	{-1@}
+_pueRxCompleteProcess:
+	push	af
+	push	hl
+	bit	usbPipeFlagCbIsTableB, (hl)
+	inc	hl
+	inc	hl
+	ld	e, (hl)
+	inc	hl
+	ld	d, (hl)
+	jr	z, {@}
+	
+	ld	
+	ex	de, hl
+	
+	call	ProcessPacket
+	jr	_pueRxCRet
+@:	dec	hl
+	dec	hl
+	dec	hl
+	ex	de, hl
+	ld	a, c
+	call	CallHL
+_pueRxCRet:
 	pop	hl
 	pop	af
 	ret
@@ -719,7 +761,7 @@ ProcessPacket:
 ;     - .dw jumpAddress2
 ;     - ...
 ;     - .dw matchNotFoundAddress
-;     - jumpAddress: .db 0 ; this will chain to another table
+;     - jumpAddress: .db 0 \ .db flagsAndNumberOfEntries \ .db ... ; this will chain to another table
 ;     - jumpAddress: ld a, 123 \ call doSomething ; not zero, so executes code there
 ; Output:
 ;  - Correct code path found based on data
@@ -757,8 +799,10 @@ processPacketNoIncDe	.equ	40h
 	ld	h, (hl)
 	ld	l, a
 	ld	a, (hl)
+	inc	hl
 	or	a
 	jr	z, ProcessPacket
+	dec	hl
 	jp	(hl)
 
 

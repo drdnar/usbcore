@@ -76,18 +76,22 @@ usbPipeBufferWritePtr	.equ	usbPipeBufferReadPtr + 2
 ; Pipe flags
 usbPipeFlagCbOnIntr	.equ	01h
 usbPipeFlagCbOnIntrB	.equ	0
-usbPipeFlagAutoBuffer	.equ	02h
-usbPipeFlagAutoBufferB	.equ	1
-usbPipeCircularBuffer	.equ	04h
-usbPipeCircularBufferB	.equ	2
-usbPipeFlagSendNull	.equ	08h
-usbPipeFlagSendNullB	.equ	3
-usbPipeFlagActiveXmit	.equ	10h
-usbPipeFlagActiveXmitB	.equ	4
-usbPipeFlagBufferFull	.equ	20h
-usbPipeFlagBufferFullB	.equ	5
-usbPipeFlagBufferEmpty	.equ	20h
-usbPipeFlagBufferEmptyB	.equ	5
+usbPipeFlagCbIsTable	.equ	02h
+usbPipeFlagCbIsTableB	.equ	1
+usbPipeFlagAutoBuffer	.equ	04h
+usbPipeFlagAutoBufferB	.equ	2
+usbPipeFlagCircBuffer	.equ	08h
+usbPipeFlagCircBufferB	.equ	3
+usbPipeFlagSendNull	.equ	10h
+usbPipeFlagSendNullB	.equ	4
+usbPipeFlagActiveXmit	.equ	20h
+usbPipeFlagActiveXmitB	.equ	5
+usbPipeFlagBufferFull	.equ	40h
+usbPipeFlagBufferFullB	.equ	6
+usbPipeFlagBufferEmpty	.equ	80h
+usbPipeFlagBufferEmptyB	.equ	7
+
+
 
 ; Data callback flags
 dataProcCbPipeMask	.equ	0Fh
