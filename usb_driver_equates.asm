@@ -57,8 +57,8 @@ usbEvResumeB		.equ	4
 
 ; Pipe-specific data
 usbPipeFlags		.equ	0
-usbPipeTemp		.equ	usbPipeFlags + 1
-usbPipeDataProcCb	.equ	usbPipeTemp + 1
+usbPipeConfig		.equ	usbPipeFlags + 1
+usbPipeDataProcCb	.equ	usbPipeConfig + 1
 usbPipeBufferPtr	.equ	usbPipeDataProcCb + 2
 ; DataSize is important for autosend/autoreceive
 ; If not circular buffer:

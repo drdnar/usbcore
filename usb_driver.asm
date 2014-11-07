@@ -881,10 +881,18 @@ ResetPipes:
 	out	(pUsbIndex), a
 	ld	a, csr0ContFlushFifo
 	out	(pUsbCsr0Cont), a
+	; Reset each pipe
+	push	ix
+	ld	ix
+
+
+
+
+
 	ld	b, 1
 @:	ld	a, b
 	cp	8
-	jr	z, {@}
+	ret	z	;jr	z, {@}
 	out	(pUsbIndex), a
 	ld	a, txCsrFifoFlushFifo
 	out	(pUsbTxCsr), a
@@ -894,11 +902,14 @@ ResetPipes:
 	out	(pUsbRxCsr), a
 	xor	a
 	out	(pUsbRxCsrCont), a
-	jr	{-1@}
-@:	; I guess we're done.
-	ret
-
 	
+	; TODO: Set pipe FIFO sizes
+	
+	jr	{-1@}
+;@:	; I guess we're done.
+;	ret
+
+
 .ifdef	NEVER
 	;Hold the USB controller in reset
 	xor	a
@@ -1153,21 +1164,15 @@ SetupDriver:
 	ldir
 	; TX pipes
 	ld	a, (usbTxPipeCount)
-	inc	hl
 	ld	de, (usbTxPipe0VarsPtr)
-@:	ldi
-	inc	de
-	ld	bc, 10
+@:	ld	bc, 12
 	ldir
 	dec	a
 	jr	nz, {-1@}
 	; RX pipes
 	ld	a, (usbRxPipeCount)
-	inc	hl
 	ld	de, (usbRxPipe0VarsPtr)
-@:	ldi
-	inc	de
-	ld	bc, 10
+@:	ld	bc, 12
 	ldir
 	dec	a
 	jr	nz, {-1@}

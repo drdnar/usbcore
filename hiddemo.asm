@@ -31,6 +31,7 @@ hidDriverSetupData:
 	.dw	hidRxPipe0Vars
 ; TX control pipe
 	.db	usbPipeFlagAutoBufferB	; usbPipeFlags
+	.db	8			; Max packet size
 	.dw	0			; usbPipeDataProcCb
 	.dw	hidControlTxBuffer	; usbPipeBufferPtr
 	.dw	64			; usbPipeBufferSize
@@ -38,6 +39,7 @@ hidDriverSetupData:
 	.dw	hidControlTxBuffer	; usbPipeBufferWritePtr
 ; TX HID interrupt pipe
 	.db	0			; usbPipeFlags
+	.db	64			; Max packet size
 	.dw	0			; usbPipeDataProcCb
 	.dw	hidInterruptBuffer	; usbPipeBufferPtr
 	.dw	8			; usbPipeBufferSize
@@ -45,6 +47,7 @@ hidDriverSetupData:
 	.dw	hidInterruptBuffer	; usbPipeBufferWritePtr
 ; RX control pipe
 	.db	usbPipeFlagAutoBufferB	; usbPipeFlags
+	.db	8			; Max packet size
 	.dw	hidControlTable		; usbPipeDataProcCb
 	.dw	hidControlRxBuffer	; usbPipeBufferPtr
 	.dw	64			; usbPipeBufferSize
