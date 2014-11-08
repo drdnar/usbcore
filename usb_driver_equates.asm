@@ -58,6 +58,11 @@ usbEvResumeB		.equ	4
 ; Pipe-specific data
 usbPipeFlags		.equ	0
 usbPipeConfig		.equ	usbPipeFlags + 1
+; If the callback is code, it is called with HL = ptr to usbPipeFlags and
+; A = pipe number.
+; For RX pipes, if the callback if a processing table, you'll have to specify
+; different tables for different pipes, or have some other means of figuring
+; out which pipe's data you're processing.
 usbPipeDataProcCb	.equ	usbPipeConfig + 1
 usbPipeBufferPtr	.equ	usbPipeDataProcCb + 2
 ; DataSize is important for autosend/autoreceive
@@ -70,6 +75,9 @@ usbPipeBufferPtr	.equ	usbPipeDataProcCb + 2
 ; If circular buffer:
 ; After every packet is RX/TX, the callback is called.
 usbPipeBufferDataSize	.equ	usbPipeBufferPtr + 2
+; ReadPtr:
+;  - If TX pipe, this is the pointer that indicates how much data has been
+;    sent.  (This is updated only after a packet is buffered
 usbPipeBufferReadPtr	.equ	usbPipeBufferDataSize + 2
 usbPipeBufferWritePtr	.equ	usbPipeBufferReadPtr + 2
  

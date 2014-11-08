@@ -19,6 +19,151 @@
 
 
 
+.ifdef	NEVER
+
+; This may become useful later.
+BootPutCInit:
+; Finds the location of the boot code's PutC.
+; Inputs:
+;  - None
+; Outputs:
+;  - bootPutCLocation: Location on page FF of PutC
+;  - Z if PutC found
+;  - NZ if PutC not found (probable boot code change)
+; Destroys:
+;  - Current flash page mappings
+;  - AF
+;  - BC
+;  - DE
+;  - HL
+	ld	a, 7Fh
+	out	(pMPgA), a
+	out	(pMPgAHigh), a	; Neat trick, huh?
+	ld	hl, (408Ah)
+	ld	de, _DispBootVerSeq
+	call	CompStr
+	ret	nz
+	ld	a, (hl)
+	inc	hl
+	ld	h, (hl)
+	ld	l, a
+	ld	de, _PutSSeq
+	call	CompStr
+	ret	nz
+	push	hl
+	ld	a, (hl)
+	inc	hl
+	ld	h, (hl)
+	ld	l, a
+	ld	de, _PutCSeq
+	call	CompStr
+	pop	hl
+	ld	(bootPutCLocation), hl
+	ret
+
+
+BootPutC:
+; Calls PutC from the boot code.
+; Inputs:
+;  - A: Character to display
+;  - CurRow, CurCol
+;  - Whatever other assorted things EOS may screw with
+; Outputs:
+;  - Char displayed
+;  - Stuff screwed with
+; Destroys:
+;  - Assume all
+	push	hl
+	push	bc
+	ld	b, a
+	in	a, (pMPgAHigh)
+	rra
+	in	a, (pMPgA)
+	push	af
+	ld	a, 7Fh
+	out	(pMPgA), a
+	out	(pMPgAHigh), a
+	ld	a, b
+	ld	hl, (bootPutCLocation)
+	call	CallHL
+	pop	af
+	out	(pMPgA), a
+	rla
+	out	(pMPgAHigh), a
+	pop	bc
+	pop	hl
+	ret
+
+
+; Boot code function stub patterns.
+; BootPutCInit uses these to verify that it has, in fact, found PutC.
+_DispBootVerSeq:
+	.db	_DispBootVerSeqEnd - _DispBootVerSeq - 1
+; From BOOT4.0
+; 44D2: 210000 225984 211845 CD7471
+	ld	hl, 0000
+	ld	(08459h), hl	; curRow
+	ld	hl, 0000
+	.db	0CD	; call
+_DispBootVerSeqEnd:
+
+_PutSSeq:
+	.db	_PutSSeqEnd - _PutSSeq - 1
+; 7172: C5 F5 060A 7E 23 B7 37 2809 CD3271
+	push	bc
+	push	af
+	ld	b, 00
+	ld	a, (hl)
+	inc	hl
+	or	a
+	scf	; WTF?
+	jr	z, $ + 2
+	.db	0CD	; call
+_PutSSeqEnd:
+
+_PutCSeq:
+	.db	_PutCSeqEnd - _PutCSeq - 1
+; 7132: F5 E5 FED6 2008 CD0672 CD8B71
+	push	af
+	push	hl
+	cp	0D6h	; new line
+	jr	nz, $ + 2
+	call	0000
+	call	0000
+_PutCSeqEnd:
+
+CompStr:
+; Compares two sequences of bytes.
+; Inputs:
+;  - DE: Length-prefixed check string. 00 = wildcard
+;  - HL: String to compare check string to
+; Outputs:
+;  - Z: Strings are equal
+;     - HL, DE point to byte after last byte
+;  - NZ: String are different
+;     - HL, DE point to byte that differs
+; Destroys:
+;  - AF
+;  - BC
+;  - DE
+;  - HL
+	ld	a, (de)
+	inc	de
+	ld	b, a
+@:	ld	a, (de)
+	or	a
+	jr	z, {@}
+	cp	(hl)
+	ret	nz
+@:	inc	hl
+	inc	de
+	djnz	{-2@}
+	ret
+	
+.endif
+
+
+
 .binarymode ti8x
 
 ;.define	screenDi	di

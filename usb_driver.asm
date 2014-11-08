@@ -372,6 +372,9 @@ _pueSof:
 
 _processUsbEventTxComplete:
 	call	_DequeueUsbByteA
+	; In theory, more than one pipe TX complete event bit could be set.
+	; This could happen if interrupts are inhibited for a long time.
+	; So we process check every bit, instead of stopping at the first.
 	ld	c, 0
 	ld	hl, (usbTxPipe0VarsPtr)
 	ld	de, usbPipeDataProcCb
@@ -387,9 +390,11 @@ _processUsbEventTxComplete:
 _pueTxCompleteProcess:
 	push	af
 	push	hl
+	; Fetch pointer to callback
 	ld	e, (hl)
 	inc	hl
 	ld	d, (hl)
+	; Adjust pointer to point to flags byte
 	dec	hl
 	dec	hl
 	dec	hl
@@ -416,17 +421,37 @@ _processUsbEventRxComplete:
 _pueRxCompleteProcess:
 	push	af
 	push	hl
-	bit	usbPipeFlagCbIsTableB, (hl)
+	ld	a, c
+	or	a
+	jr	nz, {@}
+	; It's the control pipe, so attempt default processing
+	inc	hl
+	inc	hl
+	ld	e, (hl)
+	inc	hl
+	ld	d, (hl)
+	ld	hl, _controlPipeRequestProcessingTable
+	jp	ProcessPacket
+_pueRxCompleteCheckCallbackType:
+	pop	hl
+	push	hl
+@:	bit	usbPipeFlagCbIsTableB, (hl)
 	inc	hl
 	inc	hl
 	ld	e, (hl)
 	inc	hl
 	ld	d, (hl)
 	jr	z, {@}
-	
-	ld	
+	inc	hl
+	ld	a, (hl)
+	inc	hl
+	ld	h, (hl)
+	ld	l, a
 	ex	de, hl
-	
+	; ProcessPacket is normally a JUMP not a CALL.
+	; But the table must terminate in executable code, which we want to
+	; return via RET, so we're in effect CALLing the callback ProcessPacket
+	; terminates with.
 	call	ProcessPacket
 	jr	_pueRxCRet
 @:	dec	hl
@@ -879,16 +904,59 @@ ResetPipes:
 	; Pipes
 	xor	a
 	out	(pUsbIndex), a
-	ld	a, csr0ContFlushFifo
+	ld	a, csr0ContFlushFifo	; Does this flush the TX FIFO? the RX FIFO? both?
 	out	(pUsbCsr0Cont), a
-	; Reset each pipe
-	push	ix
-	ld	ix
+	; Reset each TX pipe
+	ld	hl, (usbTxPipe0VarsPtr)
+	inc	hl
+	ld	a, (usbTxPipeCount)
+	ld	b, a
+	ld	de, usbPipeVarsSize
+@:	add	hl, de
+	in	a, (pUsbIndex)
+	inc	a
+	out	(pUsbIndex), a
+	cp	b
+	jr	z, {@}
+	ld	a, txCsrFifoFlushFifo
+	out	(pUsbTxCsr), a
+	ld	a, txCsrContWrDataToggle
+	out	(pUsbTxCsrCont), a
+	ld	a, (hl)
+	and	0Fh
+	out	(pUsbTxMaxP), a
+	jr	{-1@}
+@:	; Reset each RX pipe
+	xor	a
+	out	(pUsbIndex), a
+	ld	hl, (usbRxPipe0VarsPtr)
+	inc	hl
+	ld	a, (usbRxPipeCount)
+	ld	b, a
+	ld	de, usbPipeVarsSize
+@:	add	hl, de
+	in	a, (pUsbIndex)
+	inc	a
+	out	(pUsbIndex), a
+	cp	b
+;	jr	z, {@}
+	ret	z
+	ld	a, rxCsrFlushFifo
+	out	(pUsbRxCsr), a
+	ld	a, (hl)
+	and	0Fh
+	out	(pUsbRxMaxP), a
+	jr	{-1@}
+;@:	ret
+	
+	
+	
 
 
 
 
 
+.ifdef	NEVER
 	ld	b, 1
 @:	ld	a, b
 	cp	8
@@ -910,7 +978,6 @@ ResetPipes:
 ;	ret
 
 
-.ifdef	NEVER
 	;Hold the USB controller in reset
 	xor	a
 	out	(pUsbSystem), a
@@ -1177,3 +1244,25 @@ SetupDriver:
 	dec	a
 	jr	nz, {-1@}
 	ret
+
+
+;===============================================================================
+;====== USB Data ===============================================================
+;===============================================================================
+
+;   - .db flagsAndNumberOfEntires (max 64; specify zero for 64)
+;        - Bit 7 processPacketApplyBitmask: Set to apply optional bitmask
+;        - Bit 6 processPacketNoIncDe: Set to prevent incrementing DE
+;     - If bitmask: .db bitmask
+;     - .db matchValue1
+;     - .dw jumpAddress1
+;     - .db matchValue2
+;     - .dw jumpAddress2
+_controlPipeRequestProcessingTable:
+; Check first byte: Request direction
+	.db	processPacketApplyBitmask | ???
+	.db	80h
+	.db	00h	; Host to device
+	.dw	_controlPipeRxReqTable
+	.db	80h	; Device to host
+	.dw	_controlPipeTxReqTable
