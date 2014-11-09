@@ -313,7 +313,7 @@ SendInterruptData:
 	scf
 	jr	z, sendInterruptDataDone
 	in	a, (pUsbTxCsr)
-	and	txCsrTxPktRdy	; Same as csr0TxPktRdy, so this works for both the control pipe and regular pipes, I guess
+	and	txCsrTxPktRdy	; Not the same as csr0TxPktRdy, so this doesn't work for the control pipe
 	jr	nz, {-1@}
 	ld	a, c
 	cp	pUsbControlPipe
@@ -337,7 +337,7 @@ sendInterruptDataNotControlPipe:
 
 	ld	b, (ix - 1)
 	otir
-	ld	a, txCsrTxPktRdy	; Same as csr0TxPktRdy, so this works for both the control pipe and regular pipes, I guess
+	ld	a, txCsrTxPktRdy	; Not the same as csr0TxPktRdy, so this doesn't work for the control pipe
 	out	(pUsbTxCsr), a
 	
 	in	a, (pUsbTxCsr)

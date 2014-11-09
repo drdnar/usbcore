@@ -14,6 +14,7 @@ hidRxPipe0Vars		.equ	hidTxPipe1Vars + usbPipeVarsSize
 hidControlTxBuffer	.equ	hidRxPipe0Vars + usbPipeVarsSize
 hidInterruptBuffer	.equ	hidControlTxBuffer + 64
 hidControlRxBuffer	.equ	hidInterruptBuffer + 8
+end_of_hid_vars		.equ	hidControlRxBuffer + 64
 
 
 ;====== Descriptors & Data =====================================================
@@ -31,7 +32,7 @@ hidDriverSetupData:
 	.dw	hidRxPipe0Vars
 ; TX control pipe
 	.db	usbPipeFlagAutoBufferB	; usbPipeFlags
-	.db	8			; Max packet size
+	.db	64 / 8			; Max packet size
 	.dw	0			; usbPipeDataProcCb
 	.dw	hidControlTxBuffer	; usbPipeBufferPtr
 	.dw	64			; usbPipeBufferSize
@@ -39,7 +40,7 @@ hidDriverSetupData:
 	.dw	hidControlTxBuffer	; usbPipeBufferWritePtr
 ; TX HID interrupt pipe
 	.db	0			; usbPipeFlags
-	.db	64			; Max packet size
+	.db	8 / 8			; Max packet size
 	.dw	0			; usbPipeDataProcCb
 	.dw	hidInterruptBuffer	; usbPipeBufferPtr
 	.dw	8			; usbPipeBufferSize
@@ -47,7 +48,7 @@ hidDriverSetupData:
 	.dw	hidInterruptBuffer	; usbPipeBufferWritePtr
 ; RX control pipe
 	.db	usbPipeFlagAutoBufferB	; usbPipeFlags
-	.db	8			; Max packet size
+	.db	64 / 8			; Max packet size
 	.dw	hidControlTable		; usbPipeDataProcCb
 	.dw	hidControlRxBuffer	; usbPipeBufferPtr
 	.dw	64			; usbPipeBufferSize
@@ -72,7 +73,7 @@ KbdDeviceDescriptor:
 	.db	3						; bDeviceClass
 	.db	1						; bDeviceSubClass
 	.db	1						; bDeviceProtocol
-	.db	8h						; bMaxPacketSize
+	.db	64						; bMaxPacketSize
 	.dw	0451h						; idVendor
 	.dw	0CA7Ch						; idProduct
 	.dw	0100h						; bcdDevice

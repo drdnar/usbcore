@@ -267,7 +267,7 @@ txCsrFifoFlushFifo	.equ	08h
 txCsrFifoFlushFifoB	.equ	3
 txCsrClrDataOtg		.equ	40h
 txCsrClrDataOtgB	.equ	6
-; These three .equates refer to pUsbTxCsrCont (92h)
+; These three equates refer to pUsbTxCsrCont (92h)
 txCsrContDmaMode	.equ	04h
 txCsrContDmaModeB	.equ	2
 txCsrContFrcDataOtg	.equ	08h	; This may or may not refer to full-speed
@@ -285,7 +285,7 @@ txCsrUnderRun		.equ	04h
 txCsrUnderRunB		.equ	2
 txCsrSendStall		.equ	10h
 txCsrSendStallB		.equ	4h
-txCsrSentStall		.equ	20h	; So, I'm guessing bit 4 is the r.equest for send-stall
+txCsrSentStall		.equ	20h	; So, I'm guessing bit 4 is the request for send-stall
 txCsrSentStallB		.equ	5	; and bit 5 confirms when the stall has been sent
 txCsrIncompTx		.equ	80h
 txCsrIncompTxB		.equ	7

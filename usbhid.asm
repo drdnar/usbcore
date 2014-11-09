@@ -20,6 +20,37 @@
 
 
 .ifdef	NEVER
+(9:12:01 PM) BrandonW: DrDnar, I feel I should warn you that the boot code's PutC routine eventually calls the character hook if the OS has been validated, and the process of checking whether the OS is validated will lock flash back.
+(9:12:10 PM) BrandonW: So don't be using it while flash is unlocked.
+(9:12:20 PM) BrandonW: It took me a very, very long time to track that down once.
+(9:12:25 PM) BrandonW: Maybe it'll save you some time if you didn't already know.
+(9:13:22 PM) DrDnar: It checks if the OS is validated EVERY time it writes a character?
+(9:13:54 PM) BrandonW: Yes, it must since the fact that it's running isn't a guarantee that the OS is validated (which is an assumption that the OS itself can make).
+(9:14:35 PM) DrDnar: Does the boot code use the localize hook to display its messages in a different language?
+(9:15:17 PM) BrandonW: No, this is only for changing character bitmap data.
+(9:15:25 PM) BrandonW: "character hook" probably wasn't the appropriate term to use, sorry.
+(9:15:40 PM) BrandonW: So the font hook, I suppose.
+(9:15:52 PM) DrDnar: So you can change boot code's font? What possible use could that be?
+(9:16:48 PM) BrandonW: It just maintains consistency when a person with such a hook installed visits the MODE menu.
+(9:17:09 PM) BrandonW: The text for the boot code version is displayed by it.
+(9:17:38 PM) BrandonW: They check that the OS is validated first so that you don't just jump into the boot code to unlock flash and steal control back with a hook.
+(9:18:13 PM) BrandonW: Or something.
+(9:18:27 PM) BrandonW: Not MODE, I meant self-test, sorry.
+(9:18:57 PM) DrDnar: How could you have control in the first place if the OS isn't validated?
+(9:19:11 PM) BrandonW: There are ways.
+(9:19:35 PM) DrDnar: Of course, but how many of those ways don't involve an exploit of their own?
+(9:20:31 PM) BrandonW: I know it's not the sharpest logic, but they don't like the idea of passing control to something they don't first have a modicum of trust in.
+(9:24:37 PM) BrandonW: I work around this PutC flash relock thing in the boot code 1.03 exploit by not writing the final OS valid marker until I'm ready to lock flash back myself.
+(9:24:56 PM) BrandonW: It checks the page 0 markers before bothering to check the certificate (which is what causes the relock).
+(9:25:01 PM) BrandonW: So if the page 0 markers fail, you have no problem.
+(9:25:08 PM) BrandonW: With an OS already installed, though...you're screwed.
+(9:25:45 PM) DrDnar: Hmm . . . might still be possible to work around. . . .
+(9:25:52 PM) DrDnar: Does the OS PutC lock flash?
+(9:25:58 PM) DrDnar: I don't recall so.
+(9:26:11 PM) BrandonW: I highly doubt it.
+(9:26:24 PM) BrandonW: It couldn't, no.
+(9:26:29 PM) DrDnar: Otherwise the Calcsys hack that unlocks flash wouldn't work.
+(9:26:55 PM) DrDnar: So I can switch between the two PutCs depending on my needs.
 
 ; This may become useful later.
 BootPutCInit:

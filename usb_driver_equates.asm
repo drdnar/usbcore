@@ -58,6 +58,7 @@ usbEvResumeB		.equ	4
 ; Pipe-specific data
 usbPipeFlags		.equ	0
 usbPipeConfig		.equ	usbPipeFlags + 1
+usbPipeMaxPacketMask	.equ	0F0h
 ; If the callback is code, it is called with HL = ptr to usbPipeFlags and
 ; A = pipe number.
 ; For RX pipes, if the callback if a processing table, you'll have to specify
@@ -72,12 +73,11 @@ usbPipeBufferPtr	.equ	usbPipeDataProcCb + 2
 ; buffer to send a full packet, it will STALL until enough data is available.
 ; For autoreceive, it will autobuffer incoming data until DataSize bytes have
 ; been read.
-; If circular buffer:
-; After every packet is RX/TX, the callback is called.
 usbPipeBufferDataSize	.equ	usbPipeBufferPtr + 2
 ; ReadPtr:
 ;  - If TX pipe, this is the pointer that indicates how much data has been
-;    sent.  (This is updated only after a packet is buffered
+;    sent.  (This is updated only after a complete packet is sent to the FIFO.)
+;  - If RX pipe, this is used for ReadRxBuffer.
 usbPipeBufferReadPtr	.equ	usbPipeBufferDataSize + 2
 usbPipeBufferWritePtr	.equ	usbPipeBufferReadPtr + 2
  
@@ -88,14 +88,34 @@ usbPipeFlagCbIsTable	.equ	02h
 usbPipeFlagCbIsTableB	.equ	1
 usbPipeFlagAutoBuffer	.equ	04h
 usbPipeFlagAutoBufferB	.equ	2
-usbPipeFlagCircBuffer	.equ	08h
-usbPipeFlagCircBufferB	.equ	3
+; Unused
 usbPipeFlagSendNull	.equ	10h
 usbPipeFlagSendNullB	.equ	4
+; If not autobuffer:
+;  - TX pipe: This is set when you send a packet, and reset when it's done
+;    sending.
+;  - RX pipe: This flag is ignored.
+; If autobuffer:
+;  - This is set until DataSize bytes have been sent.  After that, ActiveXmit
+;    is reset and DataProcCb is called.
 usbPipeFlagActiveXmit	.equ	20h
 usbPipeFlagActiveXmitB	.equ	5
+; For TX pipe:
+;  - This is set if you use the write buffer function and the buffer is full.
+; For RX pipe:
+;  - This is set when the RX buffer is full.
 usbPipeFlagBufferFull	.equ	40h
 usbPipeFlagBufferFullB	.equ	6
+; For TX pipe:
+;  - This is set when all possible bytes in buffer have been sent.
+; For RX pipe:
+;  - This is set when you have read all possible bytes from the buffer.
+; Note that this can be set at the same time as the BufferFull flag.  This
+; would happen when the buffer has been filled, and all bytes have been read
+; from it.  For example, for a TX pipe, you've used WriteTxBufferByte until it's
+; full, thereby setting BufferFull, and then the driver has sent all bytes,
+; thereby setting BufferEmpty.  (Not a concern if you manually add bytes to the
+; buffer.)
 usbPipeFlagBufferEmpty	.equ	80h
 usbPipeFlagBufferEmptyB	.equ	7
 

@@ -377,8 +377,6 @@ _processUsbEventTxComplete:
 	; So we process check every bit, instead of stopping at the first.
 	ld	c, 0
 	ld	hl, (usbTxPipe0VarsPtr)
-	ld	de, usbPipeDataProcCb
-	add	hl, de
 @:	or	a
 	ret	z
 	rra
@@ -390,7 +388,19 @@ _processUsbEventTxComplete:
 _pueTxCompleteProcess:
 	push	af
 	push	hl
+	; Check for autobuffering
+	ld	a, usbPipeFlagAutoBuffer | usbPipeFlagActiveXmit
+	and	(hl)
+	cp	usbPipeFlagAutoBuffer | usbPipeFlagActiveXmit
+	jr	nz, {@}
+	; Check to see if all data have been sent
+	
+	
+@:	; Reset Xmit flag
+	res	usbPipeFlagActiveXmitB, (hl)
 	; Fetch pointer to callback
+	inc	hl
+	inc	hl
 	ld	e, (hl)
 	inc	hl
 	ld	d, (hl)
@@ -618,6 +628,401 @@ _handleUsbProtocolIntr:
 ;====== USB Protocol Subsystem =================================================
 ;===============================================================================
 
+;------ ContinueRx -------------------------------------------------------------
+ContinueRx:
+; Continues RX.
+; Inputs:
+;  - A: Pipe number
+; Outputs:
+;  - Carry if buffer is full
+; Destroys:
+;  - AF
+;  - BC
+;  - DE
+;  - HL
+;  - IX
+	out	(pUsbIndex), a
+	push	af
+	call	GetRxPipePtr
+	pop	af
+	add	a, pUsbPipe
+	ld	c, a
+	in	a, (pUsbRxCount)
+	or	a
+	ret	z
+	ld	b, a
+	; B = number of bytes to RX, HL = PTR to flags
+	; So at this point, need to
+	;  - Check if RX all data will overflow buffer
+	;  - RX as much as possible
+	;  - If buffer full, set buffer full flag
+	;  - If not all data could be RXed, return error
+	
+	
+	inir
+	scf
+	ret
+
+
+;------ StartTxSend ------------------------------------------------------------
+StartTxSend:
+; Inputs:
+;  - A: Pipe number
+;  - BC: Number of bytes to send
+;  - HL: Ptr to data to send
+; Output:
+;  - Send continued if possible
+;  - usbPipeFlagActiveXmitB set if buffer is not empty.  You can call this with
+;    the buffer empty, and nothing will happen.
+; Destroys:
+;  - AF
+;  - BC
+;  - DE
+;  - HL
+;  - IX
+	push	af
+	call	GetTxPipePtr
+	pop	af
+	res	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)	; Force sending zero-byte packet if BC = 0
+	ld	(ix + usbPipeBufferReadPtr), l
+	ld	(ix + usbPipeBufferReadPtr + 1), h
+	ld	(ix + usbPipeBufferDataSize), c
+	ld	(ix + usbPipeBufferDataSize + 1), b
+	add	hl, bc
+	ld	(ix + usbPipeBufferWritePtr), l
+	ld	(ix + usbPipeBufferWritePtr + 1), h
+	jr	_continueTxSendThing
+
+
+;------ ContinueTxSend ---------------------------------------------------------
+ContinueTxSend:
+; Continues a TX pipe's send.
+; Input:
+;  - A: Pipe number
+; Output:
+;  - Send continued if possible
+;  - usbPipeFlagActiveXmitB set if buffer is not empty.
+;  - usbPipeFlagActiveXmitB reset if buffer is empty AND all data have been
+;    sent.
+; Destroys:
+;  - AF
+;  - BC
+;  - DE
+;  - HL
+;  - IX
+	push	af
+	call	GetTxPipePtr
+	pop	af
+	bit	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
+	jr	z, _continueTxSendThing
+	ld	e, (ix + usbPipeBufferPtr)
+	ld	d, (ix + usbPipeBufferPtr + 1)
+	ld	l, (ix + usbPipeBufferDataSize)
+	ld	h, (ix + usbPipeBufferDataSize + 1)
+	add	hl, de
+	ld	e, (ix + usbPipeBufferReadPtr)
+	ld	d, (ix + usbPipeBufferReadPtr + 1)
+	sbc	hl, de
+	ret	nz
+	res	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
+	ret
+_continueTxSendThing:
+	set	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
+	push	af
+	call	GetBufferReadByteCount
+	ld	a, (ix + usbPipeConfig)
+	and	usbPipeMaxPacketMask
+	rla
+	rla
+	rla
+	ld	e, a
+	ld	d, 0
+	ld	c, csr0TxPktRdy
+	ex	de, hl
+	cphlde
+	jr	c, {@}
+	ex	de, hl
+	ld	c, csr0TxPktRdy | csr0DataEnd
+@:	ld	b, e
+	ld	l, (ix + usbPipeBufferReadPtr)
+	ld	h, (ix + usbPipeBufferReadPtr + 1)
+	pop	af
+	or	a
+	push	de
+	jr	nz, {@}
+	call	WriteControlPacket
+	jr	{2@}
+@:	call	WritePacket
+@:	pop	de
+	ret	nc
+	ld	l, (ix + usbPipeBufferReadPtr)
+	ld	h, (ix + usbPipeBufferReadPtr + 1)
+	add	hl, de
+	ld	(ix + usbPipeBufferReadPtr), l
+	ld	(ix + usbPipeBufferReadPtr + 1), h
+	ld	e, (ix + usbPipeBufferWritePtr)
+	ld	d, (ix + usbPipeBufferWritePtr + 1)
+	cphlde
+	ret	nz
+	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
+	ret
+
+
+;------ FlushRxBuffer ----------------------------------------------------------
+FlushRxBuffer:
+; Flushes a RX pipe's buffer.  Does not flush the hardware FIFO.
+; Input:
+;  - A: Pipe number
+; Output:
+;  - Buffer flushed
+;  - usbPipeFlagBufferEmpty set
+;  - usbPipeFlagBufferFull & usbPipeFlagActiveXmit reset
+;  - usbPipeFlagCircEnd reset if circular buffer
+;  - usbPipeBufferDataSize set to zero if not circular buffer
+; Destroys:
+;  - AF
+	push	hl
+	push	ix
+	call	GetRxPipePtr
+	push	hl
+	pop	ix
+	call	FlushBuffer
+	pop	ix
+	pop	hl
+	ret
+
+
+;------ FlushTxBuffer ----------------------------------------------------------
+FlushTxBuffer:
+; Flushes a TX pipe's buffer.  Does not flush the hardware FIFO.
+; Input:
+;  - A: Pipe number
+; Output:
+;  - Buffer flushed
+;  - usbPipeFlagBufferEmpty set
+;  - usbPipeFlagBufferFull & usbPipeFlagActiveXmit reset
+;  - usbPipeFlagCircEnd reset if circular buffer
+;  - usbPipeBufferDataSize set to zero if not circular buffer
+; Destroys:
+;  - AF
+	push	hl
+	push	ix
+	call	GetTxPipePtr
+	push	hl
+	pop	ix
+	call	FlushBuffer
+	pop	ix
+	pop	hl
+	ret
+
+
+;------ FlushBuffer ------------------------------------------------------------
+FlushBuffer:
+; Flushes a pipe's buffer.  Does not flush the hardware FIFO.
+; Input:
+;  - IX: Pointer to buffer's vars
+; Output:
+;  - Buffer flushed
+;  - usbPipeFlagBufferEmpty set
+;  - usbPipeFlagBufferFull & usbPipeFlagActiveXmit reset
+;  - usbPipeBufferDataSize set to zero
+; Destroys:
+;  - AF
+	ld	a, (ix + usbPipeBufferPtr)
+	ld	(usbPipeBufferReadPtr), a
+	ld	(usbPipeBufferWritePtr), a
+	ld	a, (ix + usbPipeBufferPtr + 1)
+	ld	(usbPipeBufferReadPtr + 1), a
+	ld	(usbPipeBufferWritePtr + 1), a
+	ld	a, (ix + usbPipeFlags)
+	and	~(usbPipeFlagBufferFull | usbPipeFlagActiveXmit)
+@:	or	usbPipeFlagBufferEmpty
+	ld	(ix + usbPipeFlags), a
+	xor	a
+	ld	(ix + usbPipeBufferDataSize), a
+	ld	(ix + usbPipeBufferDataSize + 1), a
+	ret
+
+
+;------ WriteTxBufferByte ------------------------------------------------------
+WriteTxBufferByte:
+; Writes a byte to a TX pipe's buffer
+; Input:
+;  - A: Pipe number
+;  - B: Byte
+; Output:
+;  - Write ptr incremented
+;  - usbPipeFlagBufferFull set if buffer is now full
+;  - usbPipeFlagBufferEmpty reset
+;  - Z if you have written to the last free byte in the buffer
+; Destroys:
+;  - Flags
+	push	bc
+	push	de
+	push	hl
+	push	ix
+	call	GetRxPipePtr
+	push	hl
+	pop	ix
+	ld	a, b
+	call	WriteBufferByte
+	pop	ix
+	pop	hl
+	pop	de
+	pop	bc
+	ret
+
+
+;------ WriteBufferByte --------------------------------------------------------
+WriteBufferByte:
+; Writes a byte to a buffer.
+; Input:
+;  - IX: Pointer to buffer's vars
+;  - A: Byte to write
+; Outputs:
+;  - Write ptr incremented
+;  - usbPipeFlagBufferFull set if buffer is now full
+;  - usbPipeFlagBufferEmpty reset
+;  - Z if you have written to the last free byte in the buffer
+;  - HL: Number of free bytes remaining in buffer
+; Destroys:
+;  - Flags
+;  - BC
+;  - DE
+;  - HL
+	res	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
+	ld	l, (ix + usbPipeBufferWritePtr)
+	ld	h, (ix + usbPipeBufferWritePtr + 1)
+	ld	(hl), a
+	inc	hl
+	ld	(ix + usbPipeBufferWritePtr), l
+	ld	(ix + usbPipeBufferWritePtr + 1), h
+	ld	e, (ix + usbPipeBufferPtr)
+	ld	d, (ix + usbPipeBufferPtr + 1)
+	or	a
+	sbc	hl, de
+	ld	e, (ix + usbPipeBufferSize)
+	ld	d, (ix + usbPipeBufferSize + 1)
+	ex	de, hl
+	sbc	hl, de
+	ret	nz
+	set	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
+	ret
+
+
+;------ GetBufferWriteByteCount ------------------------------------------------
+GetBufferWriteByteCount:
+; Returns the number of bytes free to write to in a buffer.
+; Input:
+;  - IX: Pointer to buffer's vars
+; Output:
+;  - HL: Bytes free
+;  - C flag set if no more bytes free
+; Destroys:
+;  - BC
+;  - DE
+	bit	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
+	jr	z, {@}
+	ld	hl, 0
+	scf
+	ret
+@:	ld	l, (ix + usbPipeBufferPtr)
+	ld	h, (ix + usbPipeBufferPtr + 1)
+	ld	c, (ix + usbPipeBufferDataSize)
+	ld	b, (ix + usbPipeBufferDataSize + 1)
+	add	hl, bc
+	ld	c, (ix + usbPipeBufferWritePtr)
+	ld	b, (ix + usbPipeBufferWritePtr + 1)
+	or	a
+	sbc	hl, bc
+	ret
+
+
+;------ ReadRxBufferByte -------------------------------------------------------
+ReadRxBufferByte:
+; Reads a byte from an RX pipe's buffer.  WARNING: This does not check to make
+; sure the buffer is not empty, so calling this will cause the buffer to enter
+; and inconsistent state.
+; Input:
+;  - A: Pipe number
+; Output:
+;  - A: Byte
+;  - Read ptr incremented
+;  - usbPipeFlagBufferEmpty set if empty
+;  - usbPipeFlagBufferFull reset IFF circular buffer
+;  - Z set if you have read the last byte
+; Destroys:
+;  - Flags
+	push	bc
+	push	de
+	push	hl
+	push	ix
+	call	GetRxPipePtr
+	push	hl
+	pop	ix
+	call	ReadBufferByte
+	pop	ix
+	pop	hl
+	pop	de
+	pop	bc
+	ret
+
+
+;------ ReadBufferByte ---------------------------------------------------------
+ReadBufferByte:
+; Reads a byte from a buffer.
+; Input:
+;  - IX: Pointer to buffer's vars
+; Outputs:
+;  - A: Byte read
+;  - Read ptr incremented
+;  - usbPipeFlagBufferEmpty set if empty
+;  - usbPipeFlagBufferFull reset IFF circular buffer
+;  - Z if you have read the last byte actually in the buffer
+; Destroys:
+;  - Flags
+;  - BC
+;  - DE
+;  - HL
+	ld	l, (ix + usbPipeBufferReadPtr)
+	ld	h, (ix + usbPipeBufferReadPtr + 1)
+	ld	a, (hl)
+	inc	hl
+	ld	(ix + usbPipeBufferReadPtr), l
+	ld	(ix + usbPipeBufferReadPtr + 1), h
+	ld	e, (ix + usbPipeBufferWritePtr)
+	ld	d, (ix + usbPipeBufferWritePtr + 1)
+	cphlde
+	ret	nz
+	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
+	ret
+
+
+;------ GetBufferReadByteCount -------------------------------------------------
+GetBufferReadByteCount:
+; Returns the number of bytes left to read in a buffer.
+; Input:
+;  - IX: Pointer to buffer's vars
+; Output:
+;  - HL: Bytes left to read
+;  - C flag set if no more bytes to read
+; Destroys:
+;  - BC
+;  - DE
+	bit	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
+	jr	z, {@}
+	ld	hl, 0
+	scf
+	ret
+@:	ld	c, (ix + usbPipeBufferReadPtr)
+	ld	b, (ix + usbPipeBufferReadPtr + 1)
+	ld	l, (ix + usbPipeBufferWritePtr)
+	ld	h, (ix + usbPipeBufferWritePtr + 1)
+	or	a
+	sbc	hl, bc
+	ret
+	
+
 ;------ GetTxPipePtr -----------------------------------------------------------
 GetTxPipePtr:
 ; Gets a pointer to a TX pipe's vars
@@ -689,19 +1094,76 @@ ReadPacket:
 	scf
 	ret
 
-;------ ReadPacketByte ---------------------------------------------------------
-ReadPacketByte:
-; Reads a byte from a packet.  Just one.
+
+;------ SendControlStall -------------------------------------------------------
+SendControlStall:
+; Sends a STALL on the control pipe.
 ; Inputs:
-;   - C: Pipe number
+;  - None
 ; Outputs:
-;   - A: Byte read
-;   - Z: No bytes left?
+;  - STALL
+; Destroys:
+;  - AF
+;  - pUsbIndex
+	xor	a
+	out	(pUsbIndex), a
+	ld	a, csr0SendStall
+	out	(pUsbCsr0), a
+	ret
+
+
+;------ SendStall --------------------------------------------------------------
+SendStall:
+; Sends a STALL on a non-control pipe.
+; Inputs:
+;  - A: Pipe number
+; Outputs:
+;  - STALL
+; Destroys:
+;  - AF
+;  - pUsbIndex
+	out	(pUsbIndex), a
+	ld	a, txCsrSendStall
+	out	(pUsbTxCsrCont), a
+	ret
+
+
+;------ WriteControlPacket -----------------------------------------------------
+WriteControlPacket:
+; Writes a packet of data to the control pipe.
+; Inputs:
+;  - B: Bytes to write
+;  - C: Value to write when done: csr0TxPktRdy or csr0TxPktRdy | csr0DataEnd
+;  - HL: Pointer to packet data
+; Outputs:
+;  - Data written, pipe marked as having data ready to TX
+;  - NC if pipe not ready; data NOT sent
+; Destroys:
+;  - AF
+;  - BC
+;  - HL
+;  - pUsbIndex
+	xor	a
+	out	(pUsbIndex), a
+	in	a, (pUsbCsr0)
+	and	csr0TxPktRdy
+	ret	nz
+	ld	a, b
+	or	a
+	jr	z, {@}
+	push	bc
+	ld	c, pUsbPipe
+	otir
+	pop	bc
+@:	ld	a, c
+	out	(pUsbCsr0), a
+	scf
+	ret
 
 
 ;------ WritePacket ------------------------------------------------------------
 WritePacket:
-; Writes a packet of data to a pipe
+; Writes a packet of data to a non-control pipe.
 ; Inputs:
 ;  - A: Pipe number
 ;  - B: Bytes to write
@@ -715,10 +1177,10 @@ WritePacket:
 ;  - HL
 ;  - pUsbIndex
 	out	(pUsbIndex), a
-	add	a, pUsbPipe
+	or	pUsbPipe	; = A0 = 1010 0000
 	ld	c, a
 	in	a, (pUsbTxCsr)
-	and	txCsrTxPktRdy	; Same as csr0TxPktRdy, so this also works the control pipe
+	and	txCsrTxPktRdy
 	ret	nz
 	ld	a, b
 	or	a
@@ -741,12 +1203,12 @@ FlushRxFifo:
 ;  - AF
 ;  - pUsbIndex
 	out	(pUsbIndex), a
+	or	a
+	jr	z, {@}
 	ld	a, rxCsrClrDataOtg | rxCsrFlushFifo	; I donno, just try both.
 	out	(pUsbRxCsr), a
-	push	hl
-	
-	pop	hl
 	ret
+@:	
 
 
 ;------ FlushTxFifo ------------------------------------------------------------
