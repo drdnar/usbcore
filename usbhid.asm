@@ -18,6 +18,15 @@
 ;  - Check if charge pump is needed for peripheral mode
 
 
+.define	SWAP_BANK_A
+
+.ifndef	SWAP_BANK_B
+	pSwapBank	.equ	pMPgB
+	pSwapBankHigh	.equ	pMPgBHigh
+.else
+	pSwapBank	.equ	pMPgA
+	pSwapBankHigh	.equ	pMPgAHigh
+.endif
 
 .ifdef	NEVER
 (9:12:01 PM) BrandonW: DrDnar, I feel I should warn you that the boot code's PutC routine eventually calls the character hook if the OS has been validated, and the process of checking whether the OS is validated will lock flash back.

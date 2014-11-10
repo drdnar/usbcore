@@ -371,6 +371,8 @@ menuKeyLoop:
 	inc	hl
 	jr	Menu
 
+
+.ifdef	NEVER
 ;------ CallHLIndirect ---------------------------------------------------------
 CallHLIndirect:
 ; Calls (HL), unless (HL) is NULL.
@@ -392,6 +394,7 @@ CallHLIndirect:
 	jp	(hl)
 @:	pop	af
 	ret
+.endif
 
 
 ;------ CallHL -----------------------------------------------------------------
@@ -405,14 +408,438 @@ CallHL:
 ;  - ???
 ;  - MAYBE THE WHOLE UNIVERSE
 	push	af
-	ld	l, a
-	or	h
+	ld	a, h
+	or	a
 	jr	z, {@}
 	pop	af
 CallHLNoCheck:
 	jp	(hl)
 @:	pop	af
 	ret
-	
+
+
+.ifdef	NEVER
+;------ CallAddressOnStack -----------------------------------------------------
+CallAddressOnStack:
+; Calls the address you have pushed onto the stack, preserving HL.
+; Inputs:
+;  - The address to call is pushed onto the stack before CALLing this function
+;  - Any registers to use as arguments
+; Output:
+;  - Function is called, all registers are preserved
+; Destroys:
+;  - Flags
+	push	ix	; ix + 3, ix + 2		; 15
+	push	bc	; ix + 1, ix + 0		; 11
+	ld	ix, 0					; 14
+	add	ix, sp					; 15
+	ld	c, (ix + 4)				; 19
+	ld	b, (ix + 6)				; 19
+	ld	(ix + 6), c				; 19
+	ld	(ix + 4), b				; 19
+	ld	c, (ix + 5)				; 19
+	ld	b, (ix + 7)				; 19
+	ld	(ix + 7), c				; 19
+	ld	(ix + 5), b				; 19
+	pop	bc					; 10
+	pop	ix					; 14
+	ret						; 10
+	; 241 cc (258 including the CALL you made to call this function)
+.endif
+
+
+.ifdef	NEVER
+;------ CallHLWithHLLoadedFromStack --------------------------------------------
+CallHLWithHLLoadedFromStack:
+; Calls function at HL, but before calling, loads HL from the value you pushed
+; onto the stack.
+; Inputs:
+;  - HL: Ptr to function
+;  - Value to use for as argument to function pushed onto stack
+; Output:
+;  - Function is called, all registers and flags are preserved
+; Destroys:
+;  - Nothing
+	push	ix	; ix + 3, ix + 2		; 15
+	push	af	; ix + 1, ix + 0		; 11
+	ld	ix, 0					; 14
+	add	ix, sp					; 15
+	ld	a, (ix + 4)				; 19
+	ld	(ix + 4), l				; 19
+	ld	l, (ix + 6)				; 19
+	ld	(ix + 6), a				; 19
+	ld	a, (ix + 5)				; 19
+	ld	(ix + 5), h				; 19
+	ld	h, (ix + 7)				; 19
+	ld	(ix + 7), a				; 19
+	pop	af					; 10
+	pop	ix					; 14
+	ret						; 10
+	; 241 cc (258 including the CALL you made to call this function)
+.endif
+
+
+.ifdef	NEVER
+;------ SavePage ---------------------------------------------------------------
+SavePage:
+; Saves the current page in the swap bank onto the stack.
+; Inputs:
+;  - None
+; Output:
+;  - Page on stack
+; Destroys:
+;  - AF
+;  - HL
+	in	a, (pSwapBank)
+	ld	l, a
+	in	a, (pSwapBankHigh)
+	ld	h, a
+	ex	(sp), hl
+	jp	(hl)
+
+
+;------ RestorePage ------------------------------------------------------------
+RestorePage:
+; Restores the page mapping saved onto the stack
+; Inputs:
+;  - None
+; Output:
+;  - Page on stack
+; Destroys:
+;  - AF
+;  - HL
+	pop	hl
+	ex	(sp), hl
+	ld	a, l
+	out	(pSwapBank), a
+	ld	a, h
+	out	(pSwapBankHigh), a
+	ret
+.endif
+
+
+;------ PutByte ----------------------------------------------------------------
+PutByte:
+; Writes a byte to RAM.  If HL is in the swapping range, B is assumed to be a
+; RAM page.  (If B >= 80h, it WILL write to a RAM page, even if you intended B
+; to be a flash page.)
+; Inputs:
+;  - A: Byte to write
+;  - BHL: Location to write to
+; Outputs:
+;  - None
+; Destroys:
+;  - Flags
+	push	bc
+	push	hl
+	ld	c, pSwapBank
+	in	l, (c)
+	ex	(sp), hl
+	out	(c), b
+	ld	(hl), a
+	ex	(sp), hl
+	out	(c), l
+	pop	hl
+	pop	bc
+	ret
+
+
+;------ GetByte ----------------------------------------------------------------
+GetByte:
+; Gets a byte from any page.  Page is RAM if Page >= F0h
+; Inputs:
+;  - BHL: Ptr to byte to get
+; Output:
+;  - A: Byte
+; Destroys:
+;  - Flags
+	push	hl
+	in	a, (pSwapBank)
+	ld	l, a
+	in	a, (pSwapBankHigh)
+	ld	h, a
+	ex	(sp), hl
+	ld	a, b
+	cp	0F0h
+	jr	nc, {@}
+	rlca
+	out	(pSwapBankHigh), a
+	srl	a
+@:	out	(pSwapBank), a
+	ld	a, (hl)
+	ex	(sp), hl
+	push	af
+	ld	a, l
+	out	(pSwapBank), a
+	ld	a, h
+	out	(pSwapBankHigh), a
+	pop	af
+	pop	hl
+	ret
+.ifdef	NEVER
+	push	bc
+	push	hl
+	ld	c, pSwapBank
+	in	l, (c)
+	set	2, c
+	in	h, (c)
+	ex	(sp), hl
+	ld	a, b
+	cp	0F0h
+	jr	nc, {@}
+	rlca
+	out	(c), a
+	srl	a
+@:	out	(pSwapBank), a
+	ld	a, (hl)
+	ex	(sp), hl
+	out	(c), h
+	res	2, c
+	out	(c), a
+	pop	hl
+	pop	bc
+	ret
+.endif
+
+
+;------ InvokeCallBack ---------------------------------------------------------
+InvokeCallBack:
+; Calls the 3-byte call back pointed to by HL if the high byte of the call back
+; address is not zero.
+; Input:
+;  - IX: Pointer to call back
+; Output:
+;  - Call back called
+;  - All registers from call back are preserved
+;  - No way to know if call back wasn't called
+; Destroys:
+;  - IX
+	push	hl
+	push	af
+	ld	l, (ix + 0)
+	ld	h, (ix + 1)
+	push	hl
+	pop	ix
+	ld	a, h
+	or	a
+	jr	z, {@}
+	pop	af
+	pop	hl
+	jp	(ix)
+@:	pop	af
+	ret
+
+.ifdef	NEVER
+	push	hl
+	push	af
+	in	a, (pSwapBank)
+	ld	l, a
+	in	a, (pSwapBankHigh)
+	ld	h, a
+	pop	af
+	ex	(sp), hl
+	push	hl
+	ld	hl, _icretpoint
+	ex	(sp), hl
+	push	hl
+	push	af
+	ld	a, (ix + 2)
+	cp	0F0h
+	jr	nc, {@}
+	rlca
+	out	(pSwapBankHigh), a
+	srl	a
+@:	out	(pSwapBank), a
+	ld	l, (ix + 0)
+	ld	h, (ix + 1)
+	ld	a, l
+	or	a
+	jr	z, {@}
+	push	hl
+	pop	ix
+	pop	af
+	pop	hl
+	jp	(ix)
+@:	pop	af
+	pop	hl
+_icretpoint:
+	ex	(sp), hl
+	push	af
+	ld	a, l
+	out	(pSwapBank), a
+	ld	a, h
+	out	(pSwapBankHigh), a
+	pop	af
+	pop	hl
+	ret
+.endif
+
+.ifdef	NEVER
+	push	hl
+	push	af
+	in	a, (pSwapBank)
+	ld	l, a
+	in	a, (pSwapBankHigh)
+	ld	h, a
+	pop	af
+	ex	(sp), hl
+	push	hl
+	ld	hl, _icretpoint
+	ex	(sp), hl
+	push	hl
+	push	af
+	inc	hl
+	inc	hl
+	ld	a, (hl)
+	cp	0F0h
+	jr	nc, {@}
+	rlca
+	out	(pSwapBankHigh), a
+	srl	a
+@:	out	(pSwapBank), a
+	dec	hl
+	ld	a, (hl)
+	dec	hl
+	ld	l, (hl)
+	ld	h, a
+	or	a
+	jr	z, {@}
+	push	hl
+	pop	ix
+	pop	af
+	pop	hl
+	jp	(ix)
+@:	pop	af
+	pop	hl
+_icretpoint:
+	ex	(sp), hl
+	push	af
+	ld	a, l
+	out	(pSwapBank), a
+	ld	a, h
+	out	(pSwapBankHigh), a
+	pop	af
+	pop	hl
+	ret
+.endif
+.ifdef	NEVER
+	push	hl
+	push	af
+	in	a, (pSwapBank)
+	ld	l, a
+	in	a, (pSwapBankHigh)
+	ld	h, a
+	pop	af
+	ex	(sp), hl
+	push	hl
+	ld	hl, _icretpoint
+	ex	(sp), hl
+	inc	hl
+	inc	hl
+	push	af
+	ld	a, (hl)
+	cp	0F0h
+	jr	nc, {@}
+	rlca
+	out	(pSwapBankHigh), a
+	srl	a
+@:	out	(pSwapBank), a
+	dec	hl
+	ld	a, (hl)
+	dec	hl
+	ld	l, (hl)
+	ld	h, a
+	or	a
+	jr	z, {@}
+	pop	af
+	jp	(hl)
+@:	pop	af
+_icretpoint:
+	ex	(sp), hl
+	push	af
+	ld	a, l
+	out	(pSwapBank), a
+	ld	a, h
+	out	(pSwapBankHigh), a
+	pop	af
+	pop	hl
+	ret
+.endif
+
+
+.ifdef	NEVER
+;------ InvokeCallBackWithAFHL -------------------------------------------------
+InvokeCallBackWithAFHL:
+; Invokes the call back pointed to by HL, preserving AF and passing the value on
+; the stack in HL.
+; Inputs:
+;  - HL: Ptr to callback
+;     - If high byte of callback address is zero, it is not called.
+;  - Value on stack: Passed in HL to function
+; Outputs:
+;  - Call back called
+			; ix + 11, ix + 10	value to pass in HL
+			; ix + 9, ix + 8	original return address
+	push	af	; ix + 7, ix + 6	original page mapping
+	push	af	; ix + 5, ix + 4	stack frame ptr
+	push	af	; ix + 3, ix + 2	callback address
+	push	ix	; ix + 1, ix + 0	original ix
+	ld	ix, 0
+	add	ix, sp
+	push	af	; ix - 1, ix - 2	original AF
+	in	a, (pSwapBank)
+	ld	(ix + 6), a
+	in	a, (pSwapBankHigh)
+	ld	(ix + 7), a
+	ld	a, (hl)
+	inc	hl
+	ld	(ix + 2), a
+	ld	a, (hl)
+	inc	hl
+	ld	(ix + 3), a
+	or	a
+	jr	z, _icnocall
+	ld	a, (hl)
+	cp	0F0h
+	jr	nc, {@}
+	rlca
+	out	(pSwapBankHigh), a
+	srl	a
+@:	out	(pSwapBank), a
+	ld	a, ixl
+	ld	(ix + 4), a
+	ld	a, ixh
+	ld	(ix + 5), a
+	ld	l, (ix + 10)
+	ld	h, (ix + 11)
+	pop	af
+	pop	ix
+	ret
+_icnocall:
+	pop	af
+	pop	de
+	pop	ix
+	inc	sp
+	inc	sp
+	inc	sp
+	inc	sp
+	inc	sp
+	inc	sp
+	ret
+_retPoint:
+	ex	(sp), ix
+	push	af
+	ld	a, (ix + 6)
+	out	(pSwapBank), a
+	ld	a, (ix + 7)
+	out	(pSwapBankHigh), a
+	pop	af
+	pop	ix
+	inc	sp
+	inc	sp
+	ret
+.endif
+
+
 ;------ ------------------------------------------------------------------------
 .endmodule

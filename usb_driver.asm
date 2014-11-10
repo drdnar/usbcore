@@ -246,7 +246,7 @@ _DequeueUsbWord:
 _QueueUsbEventWord:
 ; Queues a USB event, and then goes on to processing pending events.
 ; Inputs:
-;  - DE: Event processing callback address
+;  - DE: Event processing call back address
 ;  - HL: Argument word
 	push	hl
 	call	QueueUsbWord
@@ -259,7 +259,7 @@ _QueueUsbEventWord:
 _QueueUsbEventByte:
 ; Queues a USB event, and then goes on to processing pending events.
 ; Inputs:
-;  - DE: Event processing callback address
+;  - DE: Event processing call back address
 ;  - A: Argument byte
 	call	QueueUsbWord
 	call	QueueUsbByteA
@@ -270,7 +270,7 @@ _QueueUsbEventByte:
 _QueueUsbEventNull:
 ; Queues a USB event, and then goes on to processing pending events.
 ; Input:
-;  - DE: Event processing callback address
+;  - DE: Event processing call back address
 	call	QueueUsbWord
 
 
@@ -283,8 +283,11 @@ _ProcessUsbEvents:
 	jp	_ExitUsbInterrupt
 @:	ei
 @:	call	_DequeueUsbWord
-	jp	nz, {@}
-	di
+	jr	z, {@}
+	ex	de, hl
+	call	CallHL
+	jr	{-1@}
+@:	di
 	ld	hl, usbIntRecurseFlag
 .ifndef	DEBUG
 	inc	(hl)
@@ -301,15 +304,12 @@ _ProcessUsbEvents:
 	pop	af
 	ei
 	ret
-@:	ex	de, hl
-	call	CallHL
-	jr	{-2@}
 
 
 _processUsbEventMasterError:
 	call	_DequeueUsbByteA
-	ld	hl, (usbMasterErrorCb)
-	call	CallHL
+	ld	hl, usbMasterErrorCb
+	call	InvokeCallBack
 	ret
 
 
@@ -343,15 +343,15 @@ _processUsbEventUsbProtocol:
 
 _pueSuspend:
 	push	af
-	ld	hl, (usbSuspendCb)
-	call	CallHl
+	ld	hl, usbSuspendCb
+	call	InvokeCallBack
 	pop	af
 	ret
 
 _pueResume:
 	push	af
-	ld	hl, (usbResumeCb)
-	call	CallHl
+	ld	hl, usbResumeCb
+	call	InvokeCallBack
 	pop	af
 	ret
 
@@ -398,19 +398,12 @@ _pueTxCompleteProcess:
 	
 @:	; Reset Xmit flag
 	res	usbPipeFlagActiveXmitB, (hl)
-	; Fetch pointer to callback
-	inc	hl
-	inc	hl
-	ld	e, (hl)
-	inc	hl
-	ld	d, (hl)
-	; Adjust pointer to point to flags byte
-	dec	hl
-	dec	hl
-	dec	hl
-	ex	de, hl
-	ld	a, c
-	call	CallHL
+	; Do call back
+	push	hl
+	pop	ix
+	inc	ix
+	inc	ix
+	call	InvokeCallBack
 	pop	hl
 	pop	af
 	ret
@@ -465,11 +458,14 @@ _pueRxCompleteCheckCallbackType:
 	call	ProcessPacket
 	jr	_pueRxCRet
 @:	dec	hl
-	dec	hl
-	dec	hl
-	ex	de, hl
-	ld	a, c
-	call	CallHL
+	ld	e, l
+	ld	d, h
+	dec	de
+	dec	de
+	
+	; TODO: Call back ptr in IX now, so change this
+	
+	call	InvokeCallBack
 _pueRxCRet:
 	pop	hl
 	pop	af
@@ -628,6 +624,25 @@ _handleUsbProtocolIntr:
 ;====== USB Protocol Subsystem =================================================
 ;===============================================================================
 
+
+;------ StartRx ----------------------------------------------------------------
+StartRx:
+; Inputs:
+;  - A: Pipe number
+;  - BC: Number of bytes to receive
+;  - HL: Ptr to data buffer
+;  - E: Page of data buffer.  Should be RAM or else you won't get what you want.
+; Output:
+;  - Send continued if possible
+;  - usbPipeFlagActiveXmitB set if buffer is not empty.  You can call this with
+;    the buffer empty, and nothing will happen.
+; Destroys:
+;  - AF
+;  - BC
+;  - DE
+;  - HL
+;  - IX
+
 ;------ ContinueRx -------------------------------------------------------------
 ContinueRx:
 ; Continues RX.
@@ -664,46 +679,59 @@ ContinueRx:
 	ret
 
 
-;------ StartTxSend ------------------------------------------------------------
-StartTxSend:
+;------ StartTx ----------------------------------------------------------------
+StartTx:
+; Starts sending data.  This will automatically break up the data into max-size
+; packets.  This will send an empty packet if BC = 0.  If any data are pending
+; in the hardware FIFO, it will be flushed without being sent.
+; NO WRAPPING IS PERFORMED FOR PAGE BOUNDRY
 ; Inputs:
 ;  - A: Pipe number
 ;  - BC: Number of bytes to send
-;  - HL: Ptr to data to send
+;  - HL: Ptr to data to send.
+;  - E: Page of data to send.
 ; Output:
-;  - Send continued if possible
-;  - usbPipeFlagActiveXmitB set if buffer is not empty.  You can call this with
-;    the buffer empty, and nothing will happen.
+;  - Tx started
+;  - usbPipeFlagActiveXmitB set
+;  - Buffer pointers configured
 ; Destroys:
 ;  - AF
 ;  - BC
 ;  - DE
 ;  - HL
 ;  - IX
-	push	af
+;  - pUsbIndex
+	ld	b, a
+	call	FlushTxFifo
+	ld	a, b
 	call	GetTxPipePtr
-	pop	af
+	push	hl
+	pop	ix
+	ex	de, hl
+	ld	a, b
 	res	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)	; Force sending zero-byte packet if BC = 0
 	ld	(ix + usbPipeBufferReadPtr), l
 	ld	(ix + usbPipeBufferReadPtr + 1), h
+	ld	(ix + uspPipeBufferReadPtrPg), e
 	ld	(ix + usbPipeBufferDataSize), c
 	ld	(ix + usbPipeBufferDataSize + 1), b
 	add	hl, bc
 	ld	(ix + usbPipeBufferWritePtr), l
 	ld	(ix + usbPipeBufferWritePtr + 1), h
+	ld	(ix + uspPipeBufferWritePtrPg), e
 	jr	_continueTxSendThing
 
 
-;------ ContinueTxSend ---------------------------------------------------------
-ContinueTxSend:
+;------ ContinueTx -------------------------------------------------------------
+ContinueTx:
 ; Continues a TX pipe's send.
 ; Input:
 ;  - A: Pipe number
 ; Output:
 ;  - Send continued if possible
-;  - usbPipeFlagActiveXmitB set if buffer is not empty.
-;  - usbPipeFlagActiveXmitB reset if buffer is empty AND all data have been
-;    sent.
+;    May not continue if:
+;     - Not enough bytes in buffer for mas-size packet AND WritePtr < end of buf
+;     - Hardware FIFO not empty
 ; Destroys:
 ;  - AF
 ;  - BC
@@ -728,7 +756,12 @@ ContinueTxSend:
 	ret
 _continueTxSendThing:
 	set	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
-	push	af
+	out	(pUsbIndex), a
+	add	a, pUsbPipe
+	ld	c, a
+	in	a, (pUsbTxCsr)
+	and	txCsrTxPktRdy
+	ret	nz
 	call	GetBufferReadByteCount
 	ld	a, (ix + usbPipeConfig)
 	and	usbPipeMaxPacketMask
@@ -737,27 +770,32 @@ _continueTxSendThing:
 	rla
 	ld	e, a
 	ld	d, 0
-	ld	c, csr0TxPktRdy
 	ex	de, hl
 	cphlde
+	ld	d, csr0TxPktRdy
 	jr	c, {@}
 	ex	de, hl
-	ld	c, csr0TxPktRdy | csr0DataEnd
-@:	ld	b, e
-	ld	l, (ix + usbPipeBufferReadPtr)
+	ld	d, csr0TxPktRdy | csr0DataEnd
+@:	ld	l, (ix + usbPipeBufferReadPtr)
 	ld	h, (ix + usbPipeBufferReadPtr + 1)
-	pop	af
+	ld	b, (ix + usbPipeBufferReadPtr + 2)
+	ld	a, e
 	or	a
-	push	de
+	jr	z, _continueTxSendEmpty
+@:	call	GetByte
+	inc	hl
+	out	(c), a
+	dec	e
+	jr	nz, {-1@}
+_continueTxSendEmpty:
+	in	a, (pUsbIndex)
+	or	a
 	jr	nz, {@}
-	call	WriteControlPacket
+	ld	a, d
+;	out	(pUsbCsr0), a
 	jr	{2@}
-@:	call	WritePacket
-@:	pop	de
-	ret	nc
-	ld	l, (ix + usbPipeBufferReadPtr)
-	ld	h, (ix + usbPipeBufferReadPtr + 1)
-	add	hl, de
+@:	ld	a, txCsrTxPktRdy
+@:	out	(pUsbTxCsr), a
 	ld	(ix + usbPipeBufferReadPtr), l
 	ld	(ix + usbPipeBufferReadPtr + 1), h
 	ld	e, (ix + usbPipeBufferWritePtr)
@@ -765,7 +803,7 @@ _continueTxSendThing:
 	cphlde
 	ret	nz
 	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
-	ret
+	ret	
 
 
 ;------ FlushRxBuffer ----------------------------------------------------------
@@ -834,9 +872,12 @@ FlushBuffer:
 	ld	a, (ix + usbPipeBufferPtr + 1)
 	ld	(usbPipeBufferReadPtr + 1), a
 	ld	(usbPipeBufferWritePtr + 1), a
+	ld	a, (ix + usbPipeBufferPtr + 2)
+	ld	(usbPipeBufferReadPtr + 2), a
+	ld	(usbPipeBufferWritePtr + 2), a
 	ld	a, (ix + usbPipeFlags)
 	and	~(usbPipeFlagBufferFull | usbPipeFlagActiveXmit)
-@:	or	usbPipeFlagBufferEmpty
+	or	usbPipeFlagBufferEmpty
 	ld	(ix + usbPipeFlags), a
 	xor	a
 	ld	(ix + usbPipeBufferDataSize), a
@@ -981,7 +1022,6 @@ ReadBufferByte:
 ;  - Z if you have read the last byte actually in the buffer
 ; Destroys:
 ;  - Flags
-;  - BC
 ;  - DE
 ;  - HL
 	ld	l, (ix + usbPipeBufferReadPtr)
@@ -1007,19 +1047,18 @@ GetBufferReadByteCount:
 ;  - HL: Bytes left to read
 ;  - C flag set if no more bytes to read
 ; Destroys:
-;  - BC
 ;  - DE
 	bit	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
 	jr	z, {@}
 	ld	hl, 0
 	scf
 	ret
-@:	ld	c, (ix + usbPipeBufferReadPtr)
-	ld	b, (ix + usbPipeBufferReadPtr + 1)
+@:	ld	e, (ix + usbPipeBufferReadPtr)
+	ld	d, (ix + usbPipeBufferReadPtr + 1)
 	ld	l, (ix + usbPipeBufferWritePtr)
 	ld	h, (ix + usbPipeBufferWritePtr + 1)
 	or	a
-	sbc	hl, bc
+	sbc	hl, de
 	ret
 	
 

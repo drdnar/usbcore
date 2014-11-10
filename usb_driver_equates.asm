@@ -3,7 +3,7 @@ usbCoreAllIntrMask	.equ	usbIntrSuspend | usbIntrResume | usbIntrReset | usbIntrS
 
 
 
-; TODO: Callback invocation mode
+; TODO: Call back invocation mode
 ; TODO: Max packet size information
 
 ; Global USB driver data
@@ -31,7 +31,7 @@ usbSuspendCb		.equ	usbDeviceStopCb + 2
 usbResumeCb		.equ	usbSuspendCb + 2
 
 ; Individual pipes
-usbPipeVarsSize		.equ	12
+usbPipeVarsSize		.equ	16
 usbTxPipeCount		.equ	usbResumeCb + 2
 usbTxPipe0VarsPtr	.equ	usbTxPipeCount + 1
 usbRxPipeCount		.equ	usbTxPipe0VarsPtr + 2
@@ -59,27 +59,29 @@ usbEvResumeB		.equ	4
 usbPipeFlags		.equ	0
 usbPipeConfig		.equ	usbPipeFlags + 1
 usbPipeMaxPacketMask	.equ	0F0h
-; If the callback is code, it is called with HL = ptr to usbPipeFlags and
+; If the call back is code, it is called with DE = ptr to usbPipeFlags and
 ; A = pipe number.
-; For RX pipes, if the callback if a processing table, you'll have to specify
+; For RX pipes, if the call back if a processing table, you'll have to specify
 ; different tables for different pipes, or have some other means of figuring
 ; out which pipe's data you're processing.
 usbPipeDataProcCb	.equ	usbPipeConfig + 1
-usbPipeBufferPtr	.equ	usbPipeDataProcCb + 2
+usbPipeDataProcCbPg	.equ	usbPipeDataProcCb + 2
+usbPipeBufferPtr	.equ	usbPipeDataProcCbPg + 1
+usbPipeBufferPtrPg	.equ	usbPipeBufferPtr + 2
 ; DataSize is important for autosend/autoreceive
-; If not circular buffer:
 ; For autosend, this will send full packets until DataSize bytes have been sent.
 ; If DataSize bytes haven't been sent, but there isn't enough data in the
 ; buffer to send a full packet, it will STALL until enough data is available.
 ; For autoreceive, it will autobuffer incoming data until DataSize bytes have
 ; been read.
-usbPipeBufferDataSize	.equ	usbPipeBufferPtr + 2
+usbPipeBufferDataSize	.equ	usbPipeBufferPtrPg + 1
 ; ReadPtr:
 ;  - If TX pipe, this is the pointer that indicates how much data has been
 ;    sent.  (This is updated only after a complete packet is sent to the FIFO.)
 ;  - If RX pipe, this is used for ReadRxBuffer.
 usbPipeBufferReadPtr	.equ	usbPipeBufferDataSize + 2
-usbPipeBufferWritePtr	.equ	usbPipeBufferReadPtr + 2
+usbPipeBufferReadPtrPg	.equ	usbPipeBufferReadPtr + 2
+usbPipeBufferWritePtr	.equ	usbPipeBufferReadPtrPg + 1
  
 ; Pipe flags
 usbPipeFlagCbOnIntr	.equ	01h
