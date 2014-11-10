@@ -1121,6 +1121,23 @@ GetRxPacketSize:
 	ret
 
 
+;------ ReadyControlPipeForRx --------------------------------------------------
+ReadyControlPipeForRx:
+; Call this before when you expect to get data for a control request.
+; Inputs:
+;  - None
+; Outputs:
+;  - Ready to RX control request
+; Destroys:
+;  - AF
+;  - pUsbIndex
+	xor	a
+	out	(pUsbIndex), a
+	ld	a, csr0SvdRxPktRdy
+	out	(pUsbCsr0), a
+	ret
+
+
 ;------ ReadPacket -------------------------------------------------------------
 ReadPacket:
 ; Reads all possible bytes from packet FIFO into RAM buffer
@@ -1179,6 +1196,26 @@ SendStall:
 	out	(pUsbIndex), a
 	ld	a, txCsrSendStall
 	out	(pUsbTxCsrCont), a
+	ret
+
+
+;------ FinishControlRequest ---------------------------------------------------
+FinishControlRequest:
+; Call this at the end of a control request to mark it as finished.  Not used if
+; you have a data stage.
+; Inputs:
+;  - None
+; Output:
+;  - Control request finished
+; Destroys:
+;  - AF
+;  - pUsbIndex
+	xor	a
+	out	(pUsbIndex), a
+	in	a, (pUsbCsr0)	; Required according to BrandonW
+	ld	a, csr0DataEnd | csr0SvdRxPktRdy	; 48h
+	out	(pUsbCsr0), a
+	in	a, (pUsbCsr0)
 	ret
 
 
@@ -1420,7 +1457,9 @@ ResetPipes:
 	; Pipes
 	xor	a
 	out	(pUsbIndex), a
-	ld	a, csr0ContFlushFifo	; Does this flush the TX FIFO? the RX FIFO? both?
+	ld	a, csr0SvdRxPktRdy	; Probably flushes RX FIFO
+	out	(pUsbCsr0), a
+	ld	a, csr0ContFlushFifo	; Probably flushes TX FIFO
 	out	(pUsbCsr0Cont), a
 	; Reset each TX pipe
 	ld	hl, (usbTxPipe0VarsPtr)
