@@ -1106,6 +1106,21 @@ GetRxPipePtr:
 	ret
 	
 
+;------ GetRxPacketSize --------------------------------------------------------
+GetRxPacketSize:
+; Gets the size of the packet sitting in the hardware FIFO.
+; Inputs:
+;  - A: FIFO number
+; Output:
+;  - A: Packet size
+; Destroys:
+;  - pUsbIndex
+	out	
+	out	(pUsbIndex), a
+	in	a, (pUsbRxCount)
+	ret
+
+
 ;------ ReadPacket -------------------------------------------------------------
 ReadPacket:
 ; Reads all possible bytes from packet FIFO into RAM buffer

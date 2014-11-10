@@ -84,13 +84,24 @@ usbPipeBufferReadPtrPg	.equ	usbPipeBufferReadPtr + 2
 usbPipeBufferWritePtr	.equ	usbPipeBufferReadPtrPg + 1
  
 ; Pipe flags
-usbPipeFlagCbOnIntr	.equ	01h
-usbPipeFlagCbOnIntrB	.equ	0
+;usbPipeFlagCbOnIntr	.equ	01h
+;usbPipeFlagCbOnIntrB	.equ	0
 usbPipeFlagCbIsTable	.equ	02h
 usbPipeFlagCbIsTableB	.equ	1
+; For TX:
+;  - Automatically break up TX into max-size packets, except the last.
+;  - You can use Write[Control]Packet to send individual packets if you don't
+;    want autobuffering.
+; For RX:
+;  - Automatically buffer every RX into the RAM buffer.
+;  - If not set, no data are read from buffer.  Your call back must manually
+;    read the data.
 usbPipeFlagAutoBuffer	.equ	04h
 usbPipeFlagAutoBufferB	.equ	2
-; Unused
+; Set to call the call back after every TX/RX packet.
+usbPipeFlagCbEveryXmit	.equ	08h
+usbPipeFlagCbEveryXmitB	.equ	3
+; Probably remove this?
 usbPipeFlagSendNull	.equ	10h
 usbPipeFlagSendNullB	.equ	4
 ; If not autobuffer:

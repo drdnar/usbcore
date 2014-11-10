@@ -604,7 +604,7 @@ GetByte:
 
 ;------ InvokeCallBack ---------------------------------------------------------
 InvokeCallBack:
-; Calls the 3-byte call back pointed to by HL if the high byte of the call back
+; Calls the 3-byte call back pointed to by IX if the high byte of the call back
 ; address is not zero.
 ; Input:
 ;  - IX: Pointer to call back
@@ -614,6 +614,8 @@ InvokeCallBack:
 ;  - No way to know if call back wasn't called
 ; Destroys:
 ;  - IX
+; TODO:
+;  - The version below is suitable for use in a library app
 	push	hl
 	push	af
 	ld	l, (ix + 0)
