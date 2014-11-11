@@ -730,7 +730,7 @@ ContinueTx:
 ; Output:
 ;  - Send continued if possible
 ;    May not continue if:
-;     - Not enough bytes in buffer for mas-size packet AND WritePtr < end of buf
+;     - Not enough bytes in buffer for max-size packet AND WritePtr < end of buf
 ;     - Hardware FIFO not empty
 ; Destroys:
 ;  - AF
@@ -778,6 +778,7 @@ _continueTxSendThing:
 	ld	d, csr0TxPktRdy | csr0DataEnd
 @:	ld	l, (ix + usbPipeBufferReadPtr)
 	ld	h, (ix + usbPipeBufferReadPtr + 1)
+.ifdef	NEVER
 	ld	b, (ix + usbPipeBufferReadPtr + 2)
 	ld	a, e
 	or	a
@@ -786,6 +787,10 @@ _continueTxSendThing:
 	inc	hl
 	out	(c), a
 	dec	e
+.else
+	ld	b, e
+	otir
+.endif
 	jr	nz, {-1@}
 _continueTxSendEmpty:
 	in	a, (pUsbIndex)
