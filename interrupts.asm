@@ -159,9 +159,11 @@ RealIsr:
 	ei
 	ret
 .else
+	push	ix
 	in	a, (pUsbCoreIntrStatus)
 	cp	1F
 	jp	nz, HandleUsbInterrupt
+	pop	ix
 	call	Panic
 .endif
 	; Wait, there should be no other active interrupt sources.

@@ -302,6 +302,7 @@ _ProcessUsbEvents:
 	pop	bc
 	pop	hl
 	pop	af
+	pop	ix
 	ei
 	ret
 
@@ -371,20 +372,25 @@ _pueSof:
 
 
 _processUsbEventTxComplete:
+	in	a, (pUsbIndex)
+	push	af
 	call	_DequeueUsbByteA
 	; In theory, more than one pipe TX complete event bit could be set.
 	; This could happen if interrupts are inhibited for a long time.
-	; So we process check every bit, instead of stopping at the first.
+	; So we check every bit, instead of stopping at the first.
 	ld	c, 0
 	ld	hl, (usbTxPipe0VarsPtr)
 @:	or	a
-	ret	z
+	jr	z, {@}
 	rra
 	call	c, _pueTxCompleteProcess
 	inc	c
 	ld	de, usbPipeVarsSize
 	add	hl, de
 	jr	{-1@}
+@:	pop	af
+	out	(pUsbIndex), a
+	ret
 _pueTxCompleteProcess:
 	push	af
 	push	hl
@@ -410,17 +416,22 @@ _pueTxCompleteProcess:
 
 
 _processUsbEventRxComplete:
+	in	a, (pUsbIndex)
+	push	af
 	call	_DequeueUsbByteA
 	ld	c, 0
 	ld	hl, (usbRxPipe0VarsPtr)
 @:	or	a
-	ret	z
+	jr	z, {@}
 	rra
 	call	c, _pueRxCompleteProcess
 	inc	c
 	ld	de, usbPipeVarsSize
 	add	hl, de
 	jr	{-1@}
+@:	pop	af
+	out	(pUsbIndex), a
+	ret
 _pueRxCompleteProcess:
 	push	af
 	push	hl
@@ -507,6 +518,7 @@ HandleUsbInterrupt:
 ;	out	(pUsbSuspendCtrl), a
 	call	Panic
 _ExitUsbInterrupt:
+	pop	ix
 	pop	de
 	pop	bc
 	pop	hl
