@@ -787,11 +787,11 @@ _continueTxSendThing:
 	inc	hl
 	out	(c), a
 	dec	e
+	jr	nz, {-1@}
 .else
 	ld	b, e
 	otir
 .endif
-	jr	nz, {-1@}
 _continueTxSendEmpty:
 	in	a, (pUsbIndex)
 	or	a
