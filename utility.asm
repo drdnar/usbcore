@@ -629,6 +629,7 @@ InvokeCallBack:
 	pop	hl
 	jp	(ix)
 @:	pop	af
+	pop	hl
 	ret
 
 .ifdef	NEVER

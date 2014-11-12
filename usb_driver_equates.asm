@@ -74,14 +74,16 @@ usbPipeBufferPtrPg	.equ	usbPipeBufferPtr + 2
 ; buffer to send a full packet, it will STALL until enough data is available.
 ; For autoreceive, it will autobuffer incoming data until DataSize bytes have
 ; been read.
-usbPipeBufferDataSize	.equ	usbPipeBufferPtrPg + 1
 ; ReadPtr:
+usbPipeBufferDataSize	.equ	usbPipeBufferPtrPg + 1
 ;  - If TX pipe, this is the pointer that indicates how much data has been
 ;    sent.  (This is updated only after a complete packet is sent to the FIFO.)
 ;  - If RX pipe, this is used for ReadRxBuffer.
 usbPipeBufferReadPtr	.equ	usbPipeBufferDataSize + 2
 usbPipeBufferReadPtrPg	.equ	usbPipeBufferReadPtr + 2
 usbPipeBufferWritePtr	.equ	usbPipeBufferReadPtrPg + 1
+usbPipeBufferWritePtrPg	.equ	usbPipeBufferWritePtr + 2
+
  
 ; Pipe flags
 ;usbPipeFlagCbOnIntr	.equ	01h
@@ -101,9 +103,7 @@ usbPipeFlagAutoBufferB	.equ	2
 ; Set to call the call back after every TX/RX packet.
 usbPipeFlagCbEveryXmit	.equ	08h
 usbPipeFlagCbEveryXmitB	.equ	3
-; Probably remove this?
-usbPipeFlagSendNull	.equ	10h
-usbPipeFlagSendNullB	.equ	4
+; Unused
 ; If not autobuffer:
 ;  - TX pipe: This is set when you send a packet, and reset when it's done
 ;    sending.
@@ -141,6 +141,8 @@ dataProcCbRxComplete	.equ	00h
 dataProcCbTxComplete	.equ	10h
 dataProcCbRxPacket	.equ	20h
 dataProcCbTxPacket	.equ	30h
+dataProcCbRxBufOverflow	.equ	80h
+dataProcCbTxBufUnderflow	.equ	90h
 
 
 

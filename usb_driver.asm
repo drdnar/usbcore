@@ -398,21 +398,57 @@ _pueTxCompleteProcess:
 	ld	a, usbPipeFlagAutoBuffer | usbPipeFlagActiveXmit
 	and	(hl)
 	cp	usbPipeFlagAutoBuffer | usbPipeFlagActiveXmit
-	jr	nz, {@}
+	ld	a, dataProcCbTxPacket
+	jr	nz, _pueTxCompleteDoCbEndXmit
 	; Check to see if all data have been sent
-	
-	
-@:	; Reset Xmit flag
+	bit	usbPipeFlagBufferEmptyB, (hl)
+	jr	z, _pueTxCompleteContinueTx
+	ex	de, hl
+	ld	ixl, e	; Faster than push hl \ pop ix (4 + 8 + 8 = 20 vs. 11 + 14 = 25)
+	ld	ixh, d
+	ld	e, (ix + usbPipeBufferWritePtr)
+	ld	d, (ix + usbPipeBufferWritePtr + 1)
+	ld	l, (ix + usbPipeBufferReadPtr)
+	ld	h, (ix + usbPipeBufferReadPtr + 1)
+	cphlde
+	ld	e, ixl
+	ld	d, ixh
+	ex	de, hl
+	ld	a, dataProcCbTxComplete
+	; Yes, end of TX
+	jr	c, _pueTxCompleteDoCbEndXmit
+_pueTxCompleteCheckForceCb:
+	ld	a, dataProcCbTxPacket
+	; No, not end of TX, but no more data to send
+	bit	usbPipeFlagCbEveryXmitB, (hl)
+	jr	nz, _pueTxCompleteDoCb
+	jr	_pueTxCompleteEnd
+_pueTxCompleteDoCbEndXmit:
+	; Reset Xmit flag
 	res	usbPipeFlagActiveXmitB, (hl)
+_pueTxCompleteDoCb:
 	; Do call back
 	push	hl
 	pop	ix
 	inc	ix
 	inc	ix
+	inc	ix
+	or	c
 	call	InvokeCallBack
+_pueTxCompleteEnd:
 	pop	hl
 	pop	af
 	ret
+_pueTxCompleteContinueTx:
+	push	af
+	push	hl
+	call	_pueTxCompleteCheckForceCb
+	res	usbPipeFlagActiveXmitB, (hl)	; If call back resets XMIT flag, then discontinue send
+	jr	z, _pueTxCompleteEnd
+	ld	a, c
+	call	_continueTxSendThing
+	call	nc, Panic	; Pipe should be ready because it's done sending.
+	jr	_pueTxCompleteEnd
 
 
 _processUsbEventRxComplete:
@@ -689,8 +725,27 @@ ContinueRx:
 	in	a, (pUsbRxCount)
 	or	a
 	ret	z
-	ld	b, a
-	; B = number of bytes to RX, HL = PTR to flags
+	ld	e, a
+	ld	d, 0
+	push	hl
+	pop	ix
+	ld	l, (ix + usbPipeBufferPtr)
+	ld	h, (ix + usbPipeBufferPtr + 1)
+	ld	c, (ix + usbPipeBufferDataSize)
+	ld	b, (ix + usbPipeBufferDataSize + 1)
+	add	hl, bc
+	ld	c, (ix + usbPipeBufferWritePtr)
+	ld	b, (ix + usbPipeBufferWritePtr + 1)
+	sbc	hl, bc
+	cphlde
+	jr	nc, {@}
+	set	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
+	ld	bc, usbPipeDataProcCb
+	add	ix, bc
+	in	a, (pUsbIndex)
+	or	dataProcCbRxBufOverflow
+	call	InvokeCallBack
+	
 	; So at this point, need to
 	;  - Check if RX all data will overflow buffer
 	;  - RX as much as possible
@@ -756,6 +811,7 @@ ContinueTx:
 ;    May not continue if:
 ;     - Not enough bytes in buffer for max-size packet AND WritePtr < end of buf
 ;     - Hardware FIFO not empty
+;  - NC if couldn't send due to pipe not being ready
 ; Destroys:
 ;  - AF
 ;  - BC
@@ -766,18 +822,19 @@ ContinueTx:
 	call	GetTxPipePtr
 	pop	af
 	bit	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
-	jr	z, _continueTxSendThing
-	ld	e, (ix + usbPipeBufferPtr)
-	ld	d, (ix + usbPipeBufferPtr + 1)
-	ld	l, (ix + usbPipeBufferDataSize)
-	ld	h, (ix + usbPipeBufferDataSize + 1)
-	add	hl, de
-	ld	e, (ix + usbPipeBufferReadPtr)
-	ld	d, (ix + usbPipeBufferReadPtr + 1)
-	sbc	hl, de
 	ret	nz
-	res	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
-	ret
+;	jr	z, _continueTxSendThing
+;	ld	e, (ix + usbPipeBufferPtr)
+;	ld	d, (ix + usbPipeBufferPtr + 1)
+;	ld	l, (ix + usbPipeBufferDataSize)
+;	ld	h, (ix + usbPipeBufferDataSize + 1)
+;	add	hl, de
+;	ld	e, (ix + usbPipeBufferReadPtr)
+;	ld	d, (ix + usbPipeBufferReadPtr + 1)
+;	sbc	hl, de
+;	ret	nz
+;	res	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
+;	ret
 _continueTxSendThing:
 	set	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
 	out	(pUsbIndex), a
@@ -785,7 +842,7 @@ _continueTxSendThing:
 	ld	c, a
 	in	a, (pUsbTxCsr)
 	and	txCsrTxPktRdy
-	ret	nz
+	ret	nz	; Error, return NC
 	call	GetBufferReadByteCount
 	ld	a, (ix + usbPipeConfig)
 	and	usbPipeMaxPacketMask
@@ -830,6 +887,7 @@ _continueTxSendEmpty:
 	ld	e, (ix + usbPipeBufferWritePtr)
 	ld	d, (ix + usbPipeBufferWritePtr + 1)
 	cphlde
+	scf	; Done, return C
 	ret	nz
 	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
 	ret	
@@ -1248,6 +1306,29 @@ FinishControlRequest:
 	ret
 
 
+;------ SendControlPacket ------------------------------------------------------
+SendControlPacket:
+; Sends a packet to a control pipe, and marks the pipe as having an active Xmit.
+; Inputs:
+;  - B: Bytes to write
+;  - C: Value to write when done: csr0TxPktRdy or csr0TxPktRdy | csr0DataEnd
+;  - HL: Pointer to packet data
+; Outputs:
+;  - Data written, pipe marked as having data ready to TX
+;  - NC if pipe not ready; data NOT sent
+; Destroys:
+;  - AF
+;  - BC
+;  - DE
+;  - HL
+;  - pUsbIndex
+	xor	a
+	ex	de, hl
+	call	GetRxPipePtr
+	set	usbPipeFlagActiveXmitB, (hl)
+	ex	de, hl
+
+
 ;------ WriteControlPacket -----------------------------------------------------
 WriteControlPacket:
 ; Writes a packet of data to the control pipe.
@@ -1279,6 +1360,32 @@ WriteControlPacket:
 	out	(pUsbCsr0), a
 	scf
 	ret
+
+
+
+;------ SendPacket -------------------------------------------------------------
+SendPacket:
+; Sends a packet to a non-control pipe, and marks the pipe as having an active
+; Xmit.
+; Inputs:
+;  - A: Pipe number
+;  - B: Bytes to write
+;  - HL: Pointer to packet data
+; Outputs:
+;  - Data written, pipe marked as having data ready to TX
+;  - NC if pipe not ready; data NOT sent
+; Destroys:
+;  - AF
+;  - BC
+;  - DE
+;  - HL
+;  - pUsbIndex
+	ld	c, a
+	ex	de, hl
+	call	GetTxPipePtr
+	set	usbPipeFlagActiveXmitB, (hl)
+	ex	de, hl
+	ld	a, c
 
 
 ;------ WritePacket ------------------------------------------------------------
