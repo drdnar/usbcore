@@ -617,11 +617,23 @@ _handleUsbProtocolIntr:
 @:	; Check for TX complete
 	in	a, (pUsbIntrTx)
 	or	a
-	jr	z, {@}
+	jr	z, _usbProtIntCheckRx
 	LogUsbIntEvent8(lidUsbIntTxComplete, a)
-	ld	de, _processUsbEventTxComplete
+	; Handle set-address as a special case.
+	bit	0, a
+	jr	z, {@}
+	ld	hl, usbFlags
+	bit	usbFlagSetAddressB, (hl)
+	jr	z, {@}
+	push	af
+	ld	a, (usbTemp)
+	out	(pUsbFAddr), a
+	pop	af
+	res	usbFlagSetAddressB, (hl)
+@:	ld	de, _processUsbEventTxComplete
 	jp	_QueueUsbEventByte
-@:	; Check for RX complete
+_usbProtIntCheckRx:
+	; Check for RX complete
 	in	a, (pUsbIntrRx)
 	or	a
 	jr	z, {@}
@@ -1195,7 +1207,7 @@ SendControlStall:
 ;  - pUsbIndex
 	xor	a
 	out	(pUsbIndex), a
-	ld	a, csr0SendStall
+	ld	a, csr0SendStall | csr0SvdRxPktRdy
 	out	(pUsbCsr0), a
 	ret
 
@@ -1211,7 +1223,7 @@ SendStall:
 ;  - AF
 ;  - pUsbIndex
 	out	(pUsbIndex), a
-	ld	a, txCsrSendStall
+	ld	a, txCsrSendStall | txCsrClrDataOtg
 	out	(pUsbTxCsrCont), a
 	ret
 
@@ -1490,7 +1502,7 @@ ResetPipes:
 	out	(pUsbIndex), a
 	cp	b
 	jr	z, {@}
-	ld	a, txCsrFifoFlushFifo
+	ld	a, txCsrFifoFlushFifo | txCsrClrDataOtg
 	out	(pUsbTxCsr), a
 	ld	a, txCsrContWrDataToggle
 	out	(pUsbTxCsrCont), a
