@@ -693,7 +693,7 @@ StartRx:
 ;  - HL: Ptr to data buffer
 ;  - E: Page of data buffer.  Should be RAM or else you won't get what you want.
 ; Output:
-;  - Send continued if possible
+;  - Sets RX as being started
 ;  - usbPipeFlagActiveXmitB set if buffer is not empty.  You can call this with
 ;    the buffer empty, and nothing will happen.
 ; Destroys:
@@ -702,6 +702,28 @@ StartRx:
 ;  - DE
 ;  - HL
 ;  - IX
+	ld	b, a
+	call	FlushTxFifo
+	ld	a, b
+	call	GetRxPipePtr
+	push	hl
+	pop	ix
+	ex	de, hl
+	ld	a, b
+	res	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
+	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
+	set	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
+	ld	(ix + usbPipeBufferReadPtr), l
+	ld	(ix + usbPipeBufferReadPtr + 1), h
+;	ld	(ix + uspPipeBufferReadPtrPg), e
+	ld	(ix + usbPipeBufferDataSize), c
+	ld	(ix + usbPipeBufferDataSize + 1), b
+	ld	(ix + usbPipeBufferWritePtr), l
+	ld	(ix + usbPipeBufferWritePtr + 1), h
+;	ld	(ix + uspPipeBufferWritePtrPg), e
+	set	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
+	jr	_continueRxReceiveThing
+
 
 ;------ ContinueRx -------------------------------------------------------------
 ContinueRx:
@@ -709,51 +731,77 @@ ContinueRx:
 ; Inputs:
 ;  - A: Pipe number
 ; Outputs:
-;  - Carry if buffer is full
+;  - NC if cannot RX due to no data
 ; Destroys:
 ;  - AF
 ;  - BC
 ;  - DE
 ;  - HL
 ;  - IX
-	out	(pUsbIndex), a
 	push	af
 	call	GetRxPipePtr
 	pop	af
-	add	a, pUsbPipe
-	ld	c, a
+	bit	usbPipeFlagBufferFullB, (hl)
+	ret	nz
+_continueRxReceiveThing:
+	out	(pUsbIndex), a
 	in	a, (pUsbRxCount)
 	or	a
 	ret	z
 	ld	e, a
 	ld	d, 0
-	push	hl
+	in	a, (pUsbIndex)
+	or	a
+	jr	nz, {@}
+	in	a, (pUsbCsr0)
+	and	csr0RxPktRdy
+	ret	nz	; ???
+	jr	{2@}
+@:	in	a, (pUsbRxCsr)
+	and	rxCsrRxPktRdy
+	ret	nz	; ???
+@:	push	hl
 	pop	ix
-	ld	l, (ix + usbPipeBufferPtr)
-	ld	h, (ix + usbPipeBufferPtr + 1)
-	ld	c, (ix + usbPipeBufferDataSize)
-	ld	b, (ix + usbPipeBufferDataSize + 1)
-	add	hl, bc
-	ld	c, (ix + usbPipeBufferWritePtr)
-	ld	b, (ix + usbPipeBufferWritePtr + 1)
-	sbc	hl, bc
+	call	GetBufferWriteByteCount
 	cphlde
 	jr	nc, {@}
+	; Not enough space
 	set	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
 	ld	bc, usbPipeDataProcCb
 	add	ix, bc
 	in	a, (pUsbIndex)
 	or	dataProcCbRxBufOverflow
 	call	InvokeCallBack
-	
-	; So at this point, need to
-	;  - Check if RX all data will overflow buffer
-	;  - RX as much as possible
-	;  - If buffer full, set buffer full flag
-	;  - If not all data could be RXed, return error
-	
-	
+	jr	_continueRxReceiveRet
+@:	ld	l, (ix + usbPipeBufferWritePtr)
+	ld	h, (ix + usbPipeBufferWritePtr + 1)
+	in	a, (pUsbIndex)
+	add	a, pUsbPipe
+	ld	c, a
+	in	a, (pUsbRxCount)
+	ld	b, a
+	ld	e, a
 	inir
+	ld	(ix + usbPipeBufferWritePtr), l
+	ld	(ix + usbPipeBufferWritePtr + 1), h
+	ex	de, hl
+	ld	l, (ix + usbPipeBufferPtr)
+	ld	h, (ix + usbPipeBufferPtr + 1)
+	ld	c, (ix + usbPipeBufferDataSize)
+	ld	b, (ix + usbPipeBufferDataSize + 1)
+	add	hl, bc
+	ex	de, hl
+	cphlde
+	jr	c, _continueTxNotEnoughDataToSend
+	set	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
+_continueTxNotEnoughDataToSend:
+	scf	; Done, return C
+	ret	nz
+	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
+	ret
+
+	
+_continueRxReceiveRet:
 	scf
 	ret
 
@@ -788,16 +836,17 @@ StartTx:
 	pop	ix
 	ex	de, hl
 	ld	a, b
+	set	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
 	res	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)	; Force sending zero-byte packet if BC = 0
 	ld	(ix + usbPipeBufferReadPtr), l
 	ld	(ix + usbPipeBufferReadPtr + 1), h
-	ld	(ix + uspPipeBufferReadPtrPg), e
+;	ld	(ix + uspPipeBufferReadPtrPg), e
 	ld	(ix + usbPipeBufferDataSize), c
 	ld	(ix + usbPipeBufferDataSize + 1), b
 	add	hl, bc
 	ld	(ix + usbPipeBufferWritePtr), l
 	ld	(ix + usbPipeBufferWritePtr + 1), h
-	ld	(ix + uspPipeBufferWritePtrPg), e
+;	ld	(ix + uspPipeBufferWritePtrPg), e
 	jr	_continueTxSendThing
 
 
@@ -821,27 +870,19 @@ ContinueTx:
 	push	af
 	call	GetTxPipePtr
 	pop	af
+	push	hl
+	pop	ix
 	bit	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
 	ret	nz
-;	jr	z, _continueTxSendThing
-;	ld	e, (ix + usbPipeBufferPtr)
-;	ld	d, (ix + usbPipeBufferPtr + 1)
-;	ld	l, (ix + usbPipeBufferDataSize)
-;	ld	h, (ix + usbPipeBufferDataSize + 1)
-;	add	hl, de
-;	ld	e, (ix + usbPipeBufferReadPtr)
-;	ld	d, (ix + usbPipeBufferReadPtr + 1)
-;	sbc	hl, de
-;	ret	nz
-;	res	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
-;	ret
 _continueTxSendThing:
 	set	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
 	out	(pUsbIndex), a
-	add	a, pUsbPipe
-	ld	c, a
-	in	a, (pUsbTxCsr)
-	and	txCsrTxPktRdy
+	ld	b, txCsrTxPktRdy
+	or	a
+	jr	nz, {@}
+	ld	b, csr0TxPktRdy
+@:	in	a, (pUsbTxCsr)
+	and	b
 	ret	nz	; Error, return NC
 	call	GetBufferReadByteCount
 	ld	a, (ix + usbPipeConfig)
@@ -854,16 +895,30 @@ _continueTxSendThing:
 	ex	de, hl
 	cphlde
 	ld	d, csr0TxPktRdy
-	jr	c, {@}
+	jr	c, {@}	; if max_packet_size >= bytesRemaining then do termVal = csr0TxPktRdy | csr0DataEnd if max_packet_size ~= bytesRemaining then do if write_ptr ~= end_of_buffer then do return endif endif endif
 	ex	de, hl
 	ld	d, csr0TxPktRdy | csr0DataEnd
+	jr	z, {@}
+	ld	l, (ix + usbPipeBufferPtr)
+	ld	h, (ix + usbPipeBufferPtr + 1)
+	ld	c, (ix + usbPipeBufferDataSize)
+	ld	b, (ix + usbPipeBufferDataSize + 1)
+	add	hl, bc
+	ld	c, (ix + usbPipeBufferWritePtr)
+	ld	b, (ix + usbPipeBufferWritePtr + 1)
+	or	a
+	sbc	hl, bc
+	jr	nz, _continueTxNotEnoughDataToSend	; Save a byte. . . .
 @:	ld	l, (ix + usbPipeBufferReadPtr)
 	ld	h, (ix + usbPipeBufferReadPtr + 1)
-.ifdef	NEVER
-	ld	b, (ix + usbPipeBufferReadPtr + 2)
+	in	a, (pUsbIndex)
+	add	a, pUsbPipe
+	ld	c, a
 	ld	a, e
 	or	a
 	jr	z, _continueTxSendEmpty
+.ifdef	NEVER
+	ld	b, (ix + usbPipeBufferReadPtr + 2)
 @:	call	GetByte
 	inc	hl
 	out	(c), a
@@ -887,10 +942,11 @@ _continueTxSendEmpty:
 	ld	e, (ix + usbPipeBufferWritePtr)
 	ld	d, (ix + usbPipeBufferWritePtr + 1)
 	cphlde
+_continueTxNotEnoughDataToSend:
 	scf	; Done, return C
 	ret	nz
 	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
-	ret	
+	ret
 
 
 ;------ FlushRxBuffer ----------------------------------------------------------
@@ -1048,7 +1104,6 @@ GetBufferWriteByteCount:
 ;  - C flag set if no more bytes free
 ; Destroys:
 ;  - BC
-;  - DE
 	bit	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
 	jr	z, {@}
 	ld	hl, 0
@@ -1432,7 +1487,7 @@ FlushRxFifo:
 	out	(pUsbIndex), a
 	or	a
 	jr	z, {@}
-	ld	a, rxCsrClrDataOtg | rxCsrFlushFifo	; I donno, just try both.
+	ld	a, rxCsrFlushFifo; | rxCsrClrDataOtg	; I donno, just try both.
 	out	(pUsbRxCsr), a
 	ret
 @:	
