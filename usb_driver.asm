@@ -1047,6 +1047,7 @@ WriteTxBufferByte:
 	pop	ix
 	ld	a, b
 	call	WriteBufferByte
+	call	ContinueTx
 	pop	ix
 	pop	hl
 	pop	de
