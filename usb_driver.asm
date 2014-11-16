@@ -798,9 +798,6 @@ _continueTxNotEnoughDataToSend:
 	scf	; Done, return C
 	ret	nz
 	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
-	ret
-
-	
 _continueRxReceiveRet:
 	scf
 	ret
