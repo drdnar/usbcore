@@ -213,8 +213,20 @@ log_table_start:
 ;	LogTableUsbIntEntry(lidUsbIntSuspend, 0, "INT suspend")
 ;	LogTableUsbIntEntry(lidUsbInt
 	
-	
-;.ifdef	NEVER
+	LogTableUsbIntEntry(lidUsbIntDo, 1, "INT ")
+	LogTableUsbIntEntry(lidUsbIntSuspend, 0, "INT suspend")
+	LogTableUsbIntEntry(lidUsbIntVScreen, 0, "INT ViewScreen")
+	LogTableUsbIntEntry(lidUsbIntVBusTimeout, 0, "INT v-bus timeout")
+	LogTableUsbIntEntry(lidUsbIntLine, 1, "INT LINE ")
+	LogTableUsbIntEntry(lidUsbIntLineBDisconnect, 0, "INT LINE B disconnect")
+	LogTableUsbIntEntry(lidUsbIntLineBConnect, 0, "INT LINE B connect")
+	LogTableUsbIntEntry(lidUsbIntLineAConnect, 0, "INT LINE A connect")
+	LogTableUsbIntEntry(lidUsbIntLineADisconnect, 0, "INT LINE A disconnect")
+	LogTableUsbIntEntry(lidUsbIntProt, 1, "INT PROT ")
+	LogTableUsbIntEntry(lidUsbIntTxComplete, 1, "INT TX complete")
+	LogTableUsbIntEntry(lidUsbIntRxComplete, 1, "INT RX complete")
+
+.ifdef	NEVER
 	LogTableUsbIntEntry(lidUsbIntDo, 1, "INT ")
 	LogTableUsbIntEntry(lidUsbIntSuspend, 0, "INT suspend")
 	LogTableUsbIntEntry(lidUsbIntLine, 1, "INT line ")
@@ -244,7 +256,7 @@ log_table_start:
 	LogTableUsbPhyEntry(lidUsbPhyDriverInit, 0, "PHY driver init")
 	LogTableUsbProtEntry(lidUsbProtKbdCtrlReqClass, 1, "HID class-specific CTRL ")
 	LogTableUsbProtEntry(lidUsbProtKbdGetReport, 0, "HID get report")
-;.endif
+.endif
 log_table_end:
 
 

@@ -17,17 +17,6 @@
 ;  - New USB driver
 ;  - Check if charge pump is needed for peripheral mode
 
-
-.define	SWAP_BANK_A
-
-.ifndef	SWAP_BANK_B
-	pSwapBank	.equ	pMPgB
-	pSwapBankHigh	.equ	pMPgBHigh
-.else
-	pSwapBank	.equ	pMPgA
-	pSwapBankHigh	.equ	pMPgAHigh
-.endif
-
 .ifdef	NEVER
 (9:12:01 PM) BrandonW: DrDnar, I feel I should warn you that the boot code's PutC routine eventually calls the character hook if the OS has been validated, and the process of checking whether the OS is validated will lock flash back.
 (9:12:10 PM) BrandonW: So don't be using it while flash is unlocked.
@@ -225,8 +214,21 @@ CompStr:
 .include "ti84pcse.inc"
 .include "dcse8.inc"
 .list
-.include "equates.asm"
 .include "usbequates.asm"
+.include "equates.asm"
+
+.define	UNIT_TESTS
+
+.define	SWAP_BANK_A
+
+.ifndef	SWAP_BANK_B
+pSwapBank	.equ	pMPgB
+pSwapBankHigh	.equ	pMPgBHigh
+.else
+pSwapBank	.equ	6;pMPgA
+pSwapBankHigh	.equ	14;pMPgAHigh
+.endif
+
 
 ;====== Header =================================================================
 ;------ DCSE -------------------------------------------------------------------
@@ -301,14 +303,22 @@ thingy:
 ;	.db	"nothing to do.", chNewLine
 	.db	"USB Peripheral Test Program", chNewLine
 	.db	"Build ", VERSION, chNewLine
+.ifndef	UNIT_TESTS
 	.db	"1. HID Demo", chNewLine
+.else
+	.db	"1. Unit Tests", chNewLine
+.endif
 	.db	"7. Logging Test", chNewLine
 	.db	"8. Reset Log", chNewLine
 	.db	"9. Read Log", chNewLine
 	.db	"Clear: Quit:"
 	.db	0
 	.db	sk1
+.ifndef	UNIT_TESTS
 	.dw	HidDemo
+.else
+	.db	unitTestsMenu - 1
+.endif
 	.db	sk7
 	.dw	LoggingTest
 	.db	sk8
@@ -323,7 +333,35 @@ menuResetLog:
 	call	ResetLog
 	jp	Restart
 
-	
+
+
+.ifdef	UNIT_TESTS
+	.db	0
+unitTestsMenu:
+;		 1234567890123456 C 0123456789012345
+;	.db	"            UNIT TESTS
+	.db	"           "
+	.db	80h, ('U'|80h), ('N'|80h), ('I'|80h), ('T'|80h), (' '|80h)
+	.db	('T'|80h), ('E'|80h), ('S'|80h), ('T'|80h), ('S'|80h)
+	.db	80h, chNewLine
+	.db	"1. Start driver", chNewLine
+	.db	"2. Queue tests", chNewLine
+	.db	"3. Buffering tests"
+	.db	0
+	.db	sk1
+	.dw	_doStartDriver
+	.db	skClear
+	.dw	Restart
+	.db	0
+
+_doStartDriver:
+;	ld	hl, hidTestPipeSetupData
+	call	SetupDriver
+	call	InitializePeripheralMode
+
+
+.endif
+
 ;====== Termination ============================================================
 ;------ Panic routine ----------------------------------------------------------
 errorText:	.db	"BUG CHECK: ", 0
@@ -435,8 +473,12 @@ logging_start:
 .include "logging.asm"
 logging_end:
 
-hiddemo_start:
+usb_driver_start:
+.include "usb_driver.asm"
+usb_driver_end:
 
+hiddemo_start:
+.include "hiddemo.asm"
 hiddemo_end:
 
 utility_start:
@@ -482,7 +524,7 @@ program_end:
 .echo	"Initialization & termination code size: ", generic_stuff_end - generic_stuff_start, " bytes\n"
 .echo	"Logging size: ", linky_end - linky_start, " bytes\n"
 .echo	" Log strings size: ", log_table_end - log_table_start, " bytes\n"
-
+.echo	"USB driver size: ", usb_driver_end = usb_driver_start, " bytes\n"
 .echo	"HID demo size: ", hiddemo_end - hiddemo_start, " bytes\n"
 
 .echo	"Utility routines size: ", utility_end - utility_start, " bytes\n"

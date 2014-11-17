@@ -249,7 +249,7 @@ _QueueUsbEventWord:
 ;  - DE: Event processing call back address
 ;  - HL: Argument word
 	push	hl
-	call	QueueUsbWord
+	call	_QueueUsbWord
 	pop	de
 	jr	_QueueUsbEventNull
 
@@ -260,8 +260,8 @@ _QueueUsbEventByte:
 ; Inputs:
 ;  - DE: Event processing call back address
 ;  - A: Argument byte
-	call	QueueUsbWord
-	call	QueueUsbByteA
+	call	_QueueUsbWord
+	call	_QueueUsbByteA
 	jr	_ProcessUsbEvents
 
 
@@ -270,7 +270,7 @@ _QueueUsbEventNull:
 ; Queues a USB event, and then goes on to processing pending events.
 ; Input:
 ;  - DE: Event processing call back address
-	call	QueueUsbWord
+	call	_QueueUsbWord
 
 
 ;------ ProcessUsbEvents -------------------------------------------------------
@@ -608,8 +608,9 @@ _handleLineIntr:
 	in	a, (pGpioDirection)	; Futz with GPIO direction.  Does this sometimes get changed?
 	and	0F8h
 	out	(pGpioDirection), a
-	ld	de, (usbDeviceStopCb)
-	jp	QueueUsbEventNull
+	ld	de, _processUsbEventGlobalEvent
+	ld	hl, usbEvDeviceStop * 256
+	jp	_QueueUsbEventWord
 _bCableConnect:
 	LogUsbIntEvent8(lidUsbIntLineBConnect, c)
 	ld	a, vbusRise
@@ -661,7 +662,7 @@ _handleUsbProtocolIntr:
 	ld	hl, usbFlags
 	bit	usbFlagSetAddressB, (hl)
 	jp	z, _QueueUsbEventByte
-	call	_QuueueUsbWord
+	call	_QueueUsbWord
 	call	_QueueUsbByteA
 	ld	a, (usbTemp)
 	out	(pUsbFAddr), a
@@ -794,9 +795,9 @@ _continueRxReceiveThing:
 	add	hl, bc
 	ex	de, hl
 	cphlde
-	jr	c, _continueTxNotEnoughDataToSend
+	jr	c, _continueRxNotEnoughDataToReceive
 	set	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
-_continueTxNotEnoughDataToSend:
+_continueRxNotEnoughDataToReceive:
 	scf	; Done, return C
 	ret	nz
 	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
@@ -1085,8 +1086,8 @@ WriteBufferByte:
 	ld	d, (ix + usbPipeBufferPtr + 1)
 	or	a
 	sbc	hl, de
-	ld	e, (ix + usbPipeBufferSize)
-	ld	d, (ix + usbPipeBufferSize + 1)
+	ld	e, (ix + usbPipeBufferDataSize)
+	ld	d, (ix + usbPipeBufferDataSize + 1)
 	ex	de, hl
 	sbc	hl, de
 	ret	nz
@@ -1257,7 +1258,6 @@ GetRxPacketSize:
 ;  - A: Packet size
 ; Destroys:
 ;  - pUsbIndex
-	out	
 	out	(pUsbIndex), a
 	in	a, (pUsbRxCount)
 	ret
@@ -1689,9 +1689,10 @@ ResetPipes:
 	ret	z
 	ld	a, rxCsrFlushFifo
 	out	(pUsbRxCsr), a
-	ld	a, (hl)
-	and	0Fh
-	out	(pUsbRxMaxP), a
+; TODO: I guess this isn't really something you set?
+;	ld	a, (hl)
+;	and	0Fh
+;	out	(pUsbRxMaxP), a
 	jr	{-1@}
 ;@:	ret
 	

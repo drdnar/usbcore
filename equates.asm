@@ -835,4 +835,6 @@ cursorChar	.equ	windRight + 1
 end_of_screen_var	.equ	cursorChar + 2
 
 usb_vars	.equ	end_of_screen_var
+;hid_vars	.equ	end_usb_vars
+.include "usb_driver_equates.asm"
 hid_vars	.equ	end_usb_vars

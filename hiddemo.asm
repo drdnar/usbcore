@@ -2,7 +2,7 @@ HidDemoStart:
 	
 
 
-
+hidEventCallBack:
 
 
 
@@ -21,11 +21,7 @@ end_of_hid_vars		.equ	hidControlRxBuffer + 64
 hidDriverSetupData:
 ; Global stuff
 	.dw	hidDescriptors
-	.dw	hidErrorHandler
-	.dw	hidDeviceStartHandler
-	.dw	hidDeviceStopHandler
-	.dw	0			; Suspend callback
-	.dw	0			; Resume callback
+	.dw	hidEventCallBack
 	.db	2			; TX pipes count, 8 pipe maximum (including control pipe)
 	.dw	hidTxPipe0Vars
 	.db	1			; RX pipes count, 8 pipe maximum (including control pipe)

@@ -230,6 +230,7 @@ pUsbFrameCont		.equ	8Dh
 ; USB endpoint to control
 pUsbIndex		.equ	8Eh
 ; DEVCTL
+; Reads 91 when connected to PC and charging
 pUsbDevCtl		.equ	8Fh
 usbCtrlSession		.equ	01h	; Not sure what SESSION means
 usbCtrlSessionB		.equ	0

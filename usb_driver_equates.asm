@@ -1,5 +1,5 @@
 usbLineEventsIntrMask	.equ	cidFall | cidRise | vbusRise | vbusFall
-usbCoreAllIntrMask	.equ	usbIntrSuspend | usbIntrResume | usbIntrReset | usbIntrSof | usbIntrConnect | usbIntrDisconnect | usbIntrSessReq | usbVbusError
+usbCoreAllIntrMask	.equ	usbIntrSuspend | usbIntrResume | usbIntrReset | usbIntrSof | usbIntrConnect | usbIntrDisconnect | usbIntrSessReq | usbIntrVbusError
 
 
 
@@ -12,13 +12,14 @@ usbIntRecurseFlag	.equ	usb_vars
 usbEvQWritePtr		.equ	usbIntRecurseFlag + 1
 usbEvQReadPtr		.equ	usbEvQWritePtr + 2
 usbEvQueue		.equ	usbEvQReadPtr + 2
+usbEvQueueEnd		.equ	usbEvQueue + 32
 ; Temp used for holding USB device address temporarily
-usbTemp			.equ	usbEvQueue + 32
+usbTemp			.equ	usbEvQueueEnd
 ; Driver state
 usbFlags		.equ	usbTemp + 1
 ; 
 ; Pointer to descriptors
-usbDescriptorsPtr	.equ	usbEventFlags + 1
+usbDescriptorsPtr	.equ	usbFlags + 1
 
 usbGlobalEventCb	.equ	usbDescriptorsPtr + 2
 
@@ -29,6 +30,7 @@ usbTxPipe0VarsPtr	.equ	usbTxPipeCount + 1
 usbRxPipeCount		.equ	usbTxPipe0VarsPtr + 2
 usbRxPipe0VarsPtr	.equ	usbRxPipeCount + 1
 end_usb_vars		.equ	usbRxPipe0VarsPtr + 2
+
 
 ; Global main flags
 usbFlagDeviceStartedB	.equ	0	; Set when we are configured
@@ -121,7 +123,8 @@ usbPipeFlagBufferEmptyB	.equ	7
 ; Global event call back flags
 usbEvErrMasterErr	.equ	1
 usbEvDeviceStart	.equ	usbEvErrMasterErr + 1
-usbEvSuspend		.equ	usbEvDeviceStart + 1
+usbEvDeviceStop		.equ	usbEvDeviceStart + 1
+usbEvSuspend		.equ	usbEvDeviceStop + 1
 usbEvResume		.equ	usbEvSuspend + 1
 
 ; Error codes
