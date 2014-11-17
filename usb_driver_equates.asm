@@ -14,25 +14,17 @@ usbEvQReadPtr		.equ	usbEvQWritePtr + 2
 usbEvQueue		.equ	usbEvQReadPtr + 2
 ; Temp used for holding USB device address temporarily
 usbTemp			.equ	usbEvQueue + 32
-; Driver data
+; Driver state
 usbFlags		.equ	usbTemp + 1
-usbEventFlags		.equ	usbFlags + 1
+; 
 ; Pointer to descriptors
 usbDescriptorsPtr	.equ	usbEventFlags + 1
-; Called on errors
-usbMasterErrorCb	.equ	usbDescriptorsPtr + 2
-; Called when the peripheral receives a USB address
-usbDeviceStartCb	.equ	usbMasterErrorCb + 2
-; Called when the peripheral is disconnected
-usbDeviceStopCb		.equ	usbDeviceStartCb + 2
-; Called when the device or bus is suspended
-usbSuspendCb		.equ	usbDeviceStopCb + 2
-; Called upon resume
-usbResumeCb		.equ	usbSuspendCb + 2
+
+usbGlobalEventCb	.equ	usbDescriptorsPtr + 2
 
 ; Individual pipes
 usbPipeVarsSize		.equ	16
-usbTxPipeCount		.equ	usbResumeCb + 2
+usbTxPipeCount		.equ	usbGlobalEventCb + 2
 usbTxPipe0VarsPtr	.equ	usbTxPipeCount + 1
 usbRxPipeCount		.equ	usbTxPipe0VarsPtr + 2
 usbRxPipe0VarsPtr	.equ	usbRxPipeCount + 1
@@ -45,14 +37,6 @@ usbFlagACableB		.equ	2	; Set when an A cable is inserted (error condition)
 usbFlagSetAddressB	.equ	3	; Set when Set-Address is PENDING
 usbFlagMasterErrorB	.equ	4	; Set when there is a error condition
 usbFlagControlAutoProcB	.equ	5	; Set when . . . ? What was I thinking?
-
-; Global event flags
-; Is there a use for this?
-usbEvMasterErrorB	.equ	0
-usbEvDeviceStartB	.equ	1
-usbEvDeviceStopB	.equ	2
-usbEvSuspendB		.equ	3
-usbEvResumeB		.equ	4
 
 
 ; Pipe-specific data
@@ -134,7 +118,17 @@ usbPipeFlagBufferEmptyB	.equ	7
 
 
 
-; Data callback flags
+; Global event call back flags
+usbEvErrMasterErr	.equ	1
+usbEvDeviceStart	.equ	usbEvErrMasterErr + 1
+usbEvSuspend		.equ	usbEvDeviceStart + 1
+usbEvResume		.equ	usbEvSuspend + 1
+
+; Error codes
+usbErrACable		.equ	1
+
+
+; Pipe data call back flags
 dataProcCbPipeMask	.equ	0Fh
 dataProcCbEventIdMask	.equ	0F0h
 dataProcCbRxComplete	.equ	00h

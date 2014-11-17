@@ -7,32 +7,32 @@
 ;     - Set address pending
 ;     - Master error
 ;  - Enabled pipes map
-;     - No events can be issued on non-enabled pipe
+;     - This is simply implied by various factors, namely the number of pipes
+;       with interrupts enabled, and also by the number of pipes you create
+;       variables for.
+;  - There's a count for the number of enabled pipes, though it requires them
+;    to be consecutive.
 ;  - Set address temp
 ;  - Descriptors tables ptr
-;  - Master error callback
-;  - Device start (B cable connect) callback
-;  - Device stop (B cable disconnect) callback
-;  - Bus suspend callback
-;  - Bus resume callback
-;  - Control pipe TX buffer
-;  - Control pipe RX buffer
+;  - Global event call back
+;     - Device start
+;     - Device stop (B cable disconnect)
+;     - Bus suspend
+;     - Bus resume
+;  - TX pipes variables array
+;  - RX pipes variables array
 ;
 ; Pipe array:
 ;  - Flags
-;     - Callback invocation mode
-;        - On interrupt
-;        - On event check
 ;     - Automatic buffering flag/buffer data ready to send flag
 ;        - If set for TX pipe, driver will automatically break send data up
 ;          into packets as needed, and send packets until buffer is empty
 ;           - Must call send packet function to start TX
 ;        - If set for RX pipe, driver will automatically combine received
-;          packets.  RX callback is called after each packet because it is
-;          not always possible to tell when RX complete without protocol
-;     - Automatic buffering complete flag
-;        - Set when all data for TX sent
-;        - Set when non-full-packet RX
+;          packets.  Depending on flag, may call call back after every packet.
+;     - TX/RX active flag
+;        - If autobuffer, set after buffer is full/empty
+;        - If not, set after every packet TX/RX complete
 ;  - Packet TX/TX callback
 ;     - If automatic buffering enabled, called after buffer is empty/full
 ;     - If no automatic buffering, called after TX/RX completes
@@ -41,18 +41,6 @@
 ;  - Buffer read ptr
 ;  - Buffer write ptr
 ;
-; Functions:
-;  - Release DPC
-;  - Send buffered packet
-;  - Buffer received packet
-;
-; Errors:
-;  - A cable connected
-;  - B cable disconnected
-;  - Host demands stall
-
-;  - PacketRx
-;  - PacketTxFinished
 
 ; So this is how your peripheral-mode driver will work:
 ;  - Call the initialize routine to place the driver into peripheral mode
@@ -61,10 +49,16 @@
 ;     - The driver will call the device start callback after address is set
 ;     - The driver will emit descriptors as needed
 ;     - When the host has configured the calculator, usbPeripheralConfigured will be set
-;  - At this point, you can use the send calls to send data
-;  - When the host requests data, usbHostRequestsData will be set
-;  - You need to poll the event flags regularly in your own event loop.
-
+;  - You can start sending data once you get a request for it.
+;  - Event call backs are called as part of ISR, but they're deferred until the
+;    interrupt has been acknowledged, and interrupts are re-enabled before your
+;    call back is called, so interrupts will continue processing normally.
+;    AF, BC, DE, HL, and IX are save and restored; the shadow registers and IY
+;    are not.
+;    The driver guarantees it will call call backs in order, and that if another
+;    USB interrupt occurs, any call back will not be called until the current
+;    one is finished processing.  About 10 events can be queued at a time, after
+;    which the driver will probably crash, or at least lose events.
 
 ; USB events
 
@@ -74,6 +68,12 @@
 ; Some USB events may take a while to process.  Additionally, some USB ports can
 ; indicate multiple events, but reading one ACKS all.  So it is useful to queue
 ; USB events to prevent events from being lost.
+;
+; Re-entrancy & mutual exclusion:
+;  - The writers of the queue are mutually exclusive because they are only
+;    only called during the ISR while interrupts are disabled.
+;  - The reader is mutually exclusive because of the interrupt recuse flag,
+;    which also ensures that each call back completes before the next starts.
 
 ;------ QueueUsbByteA ----------------------------------------------------------
 _QueueUsbByteA:
@@ -251,8 +251,7 @@ _QueueUsbEventWord:
 	push	hl
 	call	QueueUsbWord
 	pop	de
-	call	QueueUsbWord
-	jr	_ProcessUsbEvents
+	jr	_QueueUsbEventNull
 
 
 ;------ QueueUsbEventByte ------------------------------------------------------
@@ -281,35 +280,33 @@ _ProcessUsbEvents:
 	jr	z, {@}
 	inc	(hl)
 	jp	_ExitUsbInterrupt
-@:	ei
-@:	call	_DequeueUsbWord
+@:	di
+	call	_DequeueUsbWord
 	jr	z, {@}
+	ei
 	ex	de, hl
 	call	CallHL
 	jr	{-1@}
-@:	di
-	ld	hl, usbIntRecurseFlag
-.ifndef	DEBUG
+@:	ld	hl, usbIntRecurseFlag
 	inc	(hl)
-.else
+.ifdef	DEBUG
 	ld	a, (hl)
-	or	a
+	cp	1
 	call	nz, Panic
-	inc	a
-	ld	(hl), a
 .endif
+	pop	ix
 	pop	de
 	pop	bc
 	pop	hl
 	pop	af
-	pop	ix
 	ei
 	ret
 
 
-_processUsbEventMasterError:
-	call	_DequeueUsbByteA
-	ld	hl, usbMasterErrorCb
+_processUsbEventGlobalEvent:
+	call	_DequeueUsbWord
+	ld	a, d
+	ld	ix, usbGlobalEventCb
 	call	InvokeCallBack
 	ret
 
@@ -344,14 +341,18 @@ _processUsbEventUsbProtocol:
 
 _pueSuspend:
 	push	af
-	ld	hl, usbSuspendCb
+	ld	de, usbEvSuspend * 256
+	ld	a, d
+	ld	ix, usbGlobalEventCb
 	call	InvokeCallBack
 	pop	af
 	ret
 
 _pueResume:
 	push	af
-	ld	hl, usbResumeCb
+	ld	de, usbEvResume * 256
+	ld	a, d
+	ld	ix, usbGlobalEventCb
 	call	InvokeCallBack
 	pop	af
 	ret
@@ -619,9 +620,9 @@ _aCableConnect:
 	LogUsbIntEvent8(lidUsbIntLineAConnect, c)
 	ld	a, cidFall
 	call	_clearUsbLineEvent
-	ld	a, usbErrACable
-	ld	de, _processUsbEventMasterError
-	jp	_QueueUsbEventByte
+	ld	hl, (usbEvErrMasterErr * 256) | usbErrACable
+	ld	de, _processUsbEventGlobalEvent
+	jp	_QueueUsbEventWord
 _aCableDisconnect:
 	LogUsbIntEvent8(lidUsbIntLineADisconnect, c)
 	ld	a, cidRise
@@ -640,9 +641,7 @@ _clearUsbLineEvent:
 
 
 _handleUsbProtocolIntr:
-; TODO: This shouldn't leave interrupts disabled so long.
-; It should, once the event is identified, enable interrupts
-	; TODO: For a dual-role host/peripheral driver, here we should check
+	; For a dual-role host/peripheral driver, here we should check
 	; pUsbDevCtl for whether we're in host or peripheral mode.
 	in	a, (pUsbIntrId)
 	or	a
@@ -656,18 +655,21 @@ _handleUsbProtocolIntr:
 	jr	z, _usbProtIntCheckRx
 	LogUsbIntEvent8(lidUsbIntTxComplete, a)
 	; Handle set-address as a special case.
+	ld	de, _processUsbEventTxComplete
 	bit	0, a
-	jr	z, {@}
+	jp	z, _QueueUsbEventByte
 	ld	hl, usbFlags
 	bit	usbFlagSetAddressB, (hl)
-	jr	z, {@}
-	push	af
+	jp	z, _QueueUsbEventByte
+	call	_QuueueUsbWord
+	call	_QueueUsbByteA
 	ld	a, (usbTemp)
 	out	(pUsbFAddr), a
-	pop	af
+	ld	hl, usbFlags
 	res	usbFlagSetAddressB, (hl)
-@:	ld	de, _processUsbEventTxComplete
-	jp	_QueueUsbEventByte
+	ld	de, _processUsbEventGlobalEvent
+	ld	hl, usbEvDeviceStart * 256
+	jp	_QueueUsbEventWord
 _usbProtIntCheckRx:
 	; Check for RX complete
 	in	a, (pUsbIntrRx)
@@ -1888,6 +1890,7 @@ EnableUSB:
 FlushUsbInterrupts:
 ; Flushes all pending interrupts.
 ; TODO: Also flush hardware sources of interrupts?
+; NOT SAFE TO USE IN INTERRUPT HANDLER
 ; Inputs:
 ;  - None
 ; Outputs:

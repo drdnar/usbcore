@@ -103,7 +103,7 @@ extDischargeEnableB	.equ	7
 pZsVbusSetValue		.equ	50h
 ; The USB parts run on a 48 MHz clock.  This is different than the clock the
 ; Z80 CPU uses.  The 48 MHz clock comes from a quartz crystal.  Like any quartz
-; crystal, after power-up the crystal needs some time before its fr.equency is
+; crystal, after power-up the crystal needs some time before its frequency is
 ; stable.
 ; For power-saving, the calculator can keep the 48 MHz clock turned off when
 ; USB is not in-use.  When you enable the 48 MHz crystal, the ASIC will wait
