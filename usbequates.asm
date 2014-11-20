@@ -409,7 +409,7 @@ pUsbControlPipe		.equ	0A0h
 
 
 ;====== USB Protocol ===========================================================
-.ifdef	NEVER
+;.ifdef	NEVER
 
 ;------ Default Pipe Stuff -----------------------------------------------------
 
@@ -467,19 +467,25 @@ wIndexEPDirection	.equ	80h
 wIndexEPDirectionB	.equ	7
 wIndexInterNumer	.equ	wIndexOffset
 
-
-;------ ------------------------------------------------------------------------
-
 endpntControl		.equ	0
 endpntIsochronous	.equ	1
 endpntBulk		.equ	2
 endpntInterrupt		.equ	3
 
-usbVersion		.equ	110h
+usbVersion		.equ	0110h
 
+; USB device classes
+usbClassAudio		.equ	1
 usbClassHid		.equ	3
+usbClassPtp		.equ	6
+usbClassPrinter		.equ	7
+usbClassMassStorage	.equ	8
+usbClassHub		.equ	9
+usbClassApp		.equ	254
+usbClassVendor		.equ	255
+
 
 hidSubClassBoot		.equ	1
 hidProtocolKbd		.equ	1
 hidProtocolMouse	.equ	2
-.endif
+;.endif

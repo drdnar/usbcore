@@ -161,7 +161,7 @@ RealIsr:
 .else
 	push	ix
 	in	a, (pUsbCoreIntrStatus)
-	cp	1F
+	cp	1Fh
 	jp	nz, HandleUsbInterrupt
 	pop	ix
 	call	Panic

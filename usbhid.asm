@@ -522,9 +522,9 @@ program_end:
 .echo	"Build number: ", BUILD, "\n"
 .echo	" * SIZES * \n"
 .echo	"Initialization & termination code size: ", generic_stuff_end - generic_stuff_start, " bytes\n"
-.echo	"Logging size: ", linky_end - linky_start, " bytes\n"
+;.echo	"Logging size: ", linky_end - linky_start, " bytes\n"
 .echo	" Log strings size: ", log_table_end - log_table_start, " bytes\n"
-.echo	"USB driver size: ", usb_driver_end = usb_driver_start, " bytes\n"
+.echo	"USB driver size: ", usb_driver_end - usb_driver_start, " bytes\n"
 .echo	"HID demo size: ", hiddemo_end - hiddemo_start, " bytes\n"
 
 .echo	"Utility routines size: ", utility_end - utility_start, " bytes\n"

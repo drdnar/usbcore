@@ -2008,9 +2008,9 @@ SetupDriver:
 ;     - .dw jumpAddress2
 _controlPipeRequestProcessingTable:
 ; Check first byte: Request direction
-	.db	processPacketApplyBitmask | ???
+	.db	processPacketApplyBitmask | 2
 	.db	80h
 	.db	00h	; Host to device
-	.dw	_controlPipeRxReqTable
+;	.dw	_controlPipeRxReqTable
 	.db	80h	; Device to host
-	.dw	_controlPipeTxReqTable
+;	.dw	_controlPipeTxReqTable
