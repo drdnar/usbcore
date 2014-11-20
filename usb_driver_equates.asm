@@ -20,7 +20,7 @@ usbFlags		.equ	usbTemp + 1
 ; 
 ; Pointer to descriptors
 usbDescriptorsPtr	.equ	usbFlags + 1
-
+; Global event call back
 usbGlobalEventCb	.equ	usbDescriptorsPtr + 2
 
 ; Individual pipes

@@ -1973,21 +1973,24 @@ SetupDriver:
 ;  - IX
 	; Prevent USB confusion
 	call	DisableUSB
+	xor	a
+	ld	(usbFlags), a
+	call	FlushUsbInterrupts
 	; Global stuff
 	ld	de, usbDescriptorsPtr
-	ld	bc, 8 * 2 + 2
+	ld	bc, 4 * 2 + 1 + 1
 	ldir
 	; TX pipes
 	ld	a, (usbTxPipeCount)
 	ld	de, (usbTxPipe0VarsPtr)
-@:	ld	bc, 12
+@:	ld	bc, 16
 	ldir
 	dec	a
 	jr	nz, {-1@}
 	; RX pipes
 	ld	a, (usbRxPipeCount)
 	ld	de, (usbRxPipe0VarsPtr)
-@:	ld	bc, 12
+@:	ld	bc, 16
 	ldir
 	dec	a
 	jr	nz, {-1@}

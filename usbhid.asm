@@ -336,30 +336,7 @@ menuResetLog:
 
 
 .ifdef	UNIT_TESTS
-	.db	0
-unitTestsMenu:
-;		 1234567890123456 C 0123456789012345
-;	.db	"            UNIT TESTS
-	.db	"           "
-	.db	80h, ('U'|80h), ('N'|80h), ('I'|80h), ('T'|80h), (' '|80h)
-	.db	('T'|80h), ('E'|80h), ('S'|80h), ('T'|80h), ('S'|80h)
-	.db	80h, chNewLine
-	.db	"1. Start driver", chNewLine
-	.db	"2. Queue tests", chNewLine
-	.db	"3. Buffering tests"
-	.db	0
-	.db	sk1
-	.dw	_doStartDriver
-	.db	skClear
-	.dw	Restart
-	.db	0
-
-_doStartDriver:
-;	ld	hl, hidTestPipeSetupData
-	call	SetupDriver
-	call	InitializePeripheralMode
-
-
+.include "unittests.asm"
 .endif
 
 ;====== Termination ============================================================
