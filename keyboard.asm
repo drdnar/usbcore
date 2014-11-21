@@ -290,8 +290,7 @@ getKeyLoop:
 	jr	z, getKeyLoop
 	ld	a, (flags + mcursorFlags2)
 	and	cursorFlashMask
-	jr	z, getKeyLoop
-	call	CursorToggle
+	call	nz, CursorToggle
 	jr	getKeyLoop
 EraseCursor:
 	push	af
@@ -303,43 +302,29 @@ EraseCursor:
 @:	pop	af
 	ret
 CursorToggle:
+;	ld	a, i
+;	call	PutC
 	push	bc
 	push	de
 	push	hl
 	ld	hl, flags + mCursorFlags2
 	res	cursorFlash, (hl)
-	dec	hl
+	inc	hl
 	bit	cursorShowing, (hl)
 	jr	nz, cursorErase
 	; Cursor is not showing
 	set	cursorShowing, (hl)
 	call	ReadChar
-	ld	(cursorChar), a
+	ld	(cursorBackup), a
 	call	FixCursor
 	ld	a, (flags + mCursorFlags)
 ;	ld	c, 0
 	ld	b, a
-	ld	a, chCur
+	ld	a, (cursorChar)
 	bit	cursorOther, b
-	jr	z, cursorNormalSet
-	; Handle other cases
-	ld	a, chCurFull
-	bit	cursorFull, b
 	jr	nz, cursorShowCursor
-;	ld	a, 
-;	bit	cursorBox, b
-	inc	a
-	bit	cursorVertLine, b
-	jr	nz, cursorShowCursor
-	inc	a
-	bit	cursorUnderline, b
-	jr	nz, cursorShowCursor
-	ld	a, chBox
-	bit	cursorBox, b
-	jr	nz, cursorShowCursor
-	ld	a, '?'
-	jr	cursorShowCursor
 cursorNormalSet:
+	ld	a, chCur
 	bit	cursorInsert, b
 	jr	z, {@}
 	add	a, 4
@@ -352,11 +337,13 @@ cursorNormalSet:
 	add	a, 2
 	bit	cursorLwrAlpha, b
 	jr	z, cursorShowCursor
-	inc	a	
+	inc	a
 cursorShowCursor:
 	ld	hl, (currentRow)
 	push	hl
-	call	PutC
+;	and	127
+;	ld	a, 81h;('!'|80h)
+	call	PutCRaw
 	;call	BackspaceCursor
 	pop	hl
 	call	Locate
@@ -367,18 +354,18 @@ cursorErase:
 #if mTextInverse != 0
 	.error	"Change cursorErase to know the correct value of mTextInverse"
 #endif
-	ld	a, (cursorChar)
-	ld	hl, mTextFlags
+	ld	hl, flags + mTextFlags
 	ld	c, (hl)
 	res	mTextInverse, (hl)
 	ld	hl, (currentRow)
 	push	hl
+	ld	a, (cursorBackup)
 	call	PutC
 	pop	hl
 	call	Locate
 	ld	a, c
-	ld	(flags + mCursorFlags), a
-;	ld	a, (cursorChar)
+	ld	(flags + mTextFlags), a
+;	ld	a, (cursorBackup)
 ;	and	80h
 ;	rlc	a
 ;	ld	b, a
@@ -387,7 +374,7 @@ cursorErase:
 ;	and	~mTextInverseMask
 ;	or	b
 ;	ld	(flags + mCursorFlags), a
-;	ld	a, (cursorChar)
+;	ld	a, (cursorBackup)
 ;	and	7Fh
 ;	ld	hl, (currentRow)
 ;	push	hl

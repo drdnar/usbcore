@@ -386,12 +386,14 @@ CursorLeft:
 ;  - AF
 ;  - C
 ;  - HL
-	ld	a, (currentCol)
-	dec	a
-	ld	c, a
 	ld	a, (windLeft)
+	ld	c, a
+	ld	a, (currentCol)
+	or	a
+	ret	z
+	dec	a
 	cp	c
-	ret	nc
+	ret	c
 	ld	(currentCol), a
 	jp	SetCharCol
 
@@ -429,12 +431,14 @@ CursorUp:
 ;  - AF
 ;  - BC
 ;  - E
-	ld	a, (currentRow)
-	dec	a
-	ld	c, a
 	ld	a, (windTop)
+	ld	c, a
+	ld	a, (currentRow)
+	or	a
+	ret	z
+	dec	a
 	cp	c
-	ret	nc
+	ret	c
 	ld	(currentRow), a
 	jp	SetCharRow
 

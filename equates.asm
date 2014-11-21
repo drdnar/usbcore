@@ -704,14 +704,7 @@ cursorALock		.equ	4	;1=alpha lock has been pressed
 cursorALockMask		.equ	10h
 cursorOther		.equ	5
 cursorOtherMask		.equ	20h
-cursorFull		.equ	0
-cursorFullMask		.equ	01h
-cursorBox		.equ	1
-cursorBoxMask		.equ	02h
-cursorVertLine		.equ	2
-cursorVertLineMask	.equ	04h
-cursorUnderline		.equ	3
-cursorUnderlineMask	.equ	08h
+; Unused bits
 cursorAble 		.equ	6	;1=cursor flash is enabled
 cursorAbleMask		.equ	40h
 cursorShowing		.equ	7	;1=cursor is showing
@@ -832,7 +825,8 @@ windLeft	.equ	windTop + 1
 windBottom	.equ	windLeft + 1
 windRight	.equ	windBottom + 1
 cursorChar	.equ	windRight + 1
-end_of_screen_var	.equ	cursorChar + 2
+cursorBackup	.equ	cursorChar + 1
+end_of_screen_var	.equ	cursorBackup + 1
 
 usb_vars	.equ	end_of_screen_var
 ;hid_vars	.equ	end_usb_vars
