@@ -1,4 +1,5 @@
 .define	USB_CORE_DRIVER
+.module Usb
 ; Global data:
 ;  - Flags
 ;     - Device started (has address)
@@ -2017,3 +2018,4 @@ _controlPipeRequestProcessingTable:
 ;	.dw	_controlPipeRxReqTable
 	.db	80h	; Device to host
 ;	.dw	_controlPipeTxReqTable
+.endmodule

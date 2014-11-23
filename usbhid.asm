@@ -282,6 +282,9 @@ generic_stuff_start:
 
 ; Interrupts
 Restart:
+	ld	a, apdEnabled
+	ld	(flags + mApdFlags), a
+	call	CursorOff
 	ld	sp, (spInitial)
 	call	SetUpInterrupts
 	ei
@@ -317,7 +320,7 @@ thingy:
 .ifndef	UNIT_TESTS
 	.dw	HidDemo
 .else
-	.db	unitTestsMenu - 1
+	.dw	unitTestsMenu - 1
 .endif
 	.db	sk7
 	.dw	LoggingTest
