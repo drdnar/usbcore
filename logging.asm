@@ -225,7 +225,10 @@ log_table_start:
 	LogTableUsbIntEntry(lidUsbIntProt, 1, "INT PROT ")
 	LogTableUsbIntEntry(lidUsbIntTxComplete, 1, "INT TX complete")
 	LogTableUsbIntEntry(lidUsbIntRxComplete, 1, "INT RX complete")
-
+	LogTableUsbIntEntry(lidUsbIntProcessEvents, 0, "INT QUEUE start")
+	LogTableUsbIntEntry(lidUsbIntProcessEvent, 2, "INT DEQUEUE call back: ")
+	LogTableUsbIntEntry(lidUsbIntProcessEventsDone, 0, "INT DEQUEUE stop")
+	
 .ifdef	NEVER
 	LogTableUsbIntEntry(lidUsbIntDo, 1, "INT ")
 	LogTableUsbIntEntry(lidUsbIntSuspend, 0, "INT suspend")

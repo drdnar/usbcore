@@ -276,6 +276,7 @@ _QueueUsbEventNull:
 
 ;------ ProcessUsbEvents -------------------------------------------------------
 _ProcessUsbEvents:
+	LogUsbIntEventNull(lidUsbIntProcessEvents)
 	ld	hl, usbIntRecurseFlag
 	dec	(hl)
 	jr	z, {@}
@@ -284,6 +285,7 @@ _ProcessUsbEvents:
 @:	di
 	call	_DequeueUsbWord
 	jr	z, {@}
+	LogUsbIntEventDE(lidUsbIntProcessEvent)
 	ei
 	ex	de, hl
 	call	CallHL
@@ -295,6 +297,7 @@ _ProcessUsbEvents:
 	cp	1
 	call	nz, Panic
 .endif
+	LogUsbIntEventNull(lidUsbIntProcessEventsDone)
 	pop	ix
 	pop	de
 	pop	bc
@@ -306,6 +309,9 @@ _ProcessUsbEvents:
 
 _processUsbEventGlobalEvent:
 	call	_DequeueUsbWord
+	UnitTestPrint("[Global event: ")
+	UnitTestPrintDE()
+	UnitTestPrintChar(']')
 	ld	a, d
 	ld	ix, usbGlobalEventCb
 	call	InvokeCallBack
@@ -313,13 +319,17 @@ _processUsbEventGlobalEvent:
 
 
 _processUsbEventBConnect:
+	UnitTestPrint("[B connect]")
 	call	InitializePeripheralMode
 	call	c, Panic
 	ret
 
 
 _processUsbEventUsbProtocol:
+	UnitTestPrint("[Prot: ")
 	call	_DequeueUsbByteA
+	UnitTestPrintA()
+	UnitTestPrintChar(']')
 	rra
 	call	c, _pueSuspend
 	rra
@@ -341,24 +351,27 @@ _processUsbEventUsbProtocol:
 	ret
 
 _pueSuspend:
+	UnitTestPrint("[Prot susp]")
 	push	af
 	ld	de, usbEvSuspend * 256
 	ld	a, d
-	ld	ix, usbGlobalEventCb
+	ld	ix, (usbGlobalEventCb)
 	call	InvokeCallBack
 	pop	af
 	ret
 
 _pueResume:
+	UnitTestPrint("[Prot resm]")
 	push	af
 	ld	de, usbEvResume * 256
 	ld	a, d
-	ld	ix, usbGlobalEventCb
+	ld	ix, (usbGlobalEventCb)
 	call	InvokeCallBack
 	pop	af
 	ret
 
 _pueReset:
+	UnitTestPrint("[Prot reset]")
 	; Reset pipes
 	call	ResetPipes
 	; Enable control pipe
@@ -370,13 +383,17 @@ _pueReset:
 
 _pueSof:
 	; TODO: Probably make a callback hook and fire it.
+	UnitTestPrint("[Prot sof]")
 	ret
 
 
 _processUsbEventTxComplete:
+	UnitTestPrint("[TX comp: ")
 	in	a, (pUsbIndex)
 	push	af
 	call	_DequeueUsbByteA
+	UnitTestPrintA()
+	UnitTestPrintChar(']')
 	; In theory, more than one pipe TX complete event bit could be set.
 	; This could happen if interrupts are inhibited for a long time.
 	; So we check every bit, instead of stopping at the first.
@@ -392,6 +409,7 @@ _processUsbEventTxComplete:
 	jr	{-1@}
 @:	pop	af
 	out	(pUsbIndex), a
+	UnitTestPrint("[TX comp done]")
 	ret
 _pueTxCompleteProcess:
 	push	af
@@ -427,9 +445,11 @@ _pueTxCompleteCheckForceCb:
 	jr	_pueTxCompleteEnd
 _pueTxCompleteDoCbEndXmit:
 	; Reset Xmit flag
+	UnitTestPrint("[TX comp end XMIT]")
 	res	usbPipeFlagActiveXmitB, (hl)
 _pueTxCompleteDoCb:
 	; Do call back
+	UnitTestPrint("[TX CB go]")
 	push	hl
 	pop	ix
 	inc	ix
@@ -438,10 +458,12 @@ _pueTxCompleteDoCb:
 	or	c
 	call	InvokeCallBack
 _pueTxCompleteEnd:
+	UnitTestPrint("[TX comp end]")
 	pop	hl
 	pop	af
 	ret
 _pueTxCompleteContinueTx:
+	UnitTestPrint("[TX cont TX]")
 	push	af
 	push	hl
 	call	_pueTxCompleteCheckForceCb
@@ -454,9 +476,12 @@ _pueTxCompleteContinueTx:
 
 
 _processUsbEventRxComplete:
+	UnitTestPrint("[RX comp: ")
 	in	a, (pUsbIndex)
 	push	af
 	call	_DequeueUsbByteA
+	UnitTestPrintA()
+	UnitTestPrintChar(']')
 	ld	c, 0
 	ld	hl, (usbRxPipe0VarsPtr)
 @:	or	a
@@ -469,6 +494,7 @@ _processUsbEventRxComplete:
 	jr	{-1@}
 @:	pop	af
 	out	(pUsbIndex), a
+	UnitTestPrint("[RX comp done]")
 	ret
 _pueRxCompleteProcess:
 	push	af

@@ -505,13 +505,12 @@
 .endif
 .enddeflong
 
-.deflong LogUsbIntEvent16(logid, value)
+.deflong LogUsbIntEventDE(logid)
 	.ifdef	LOG_USB_INT
 	push	af
 	push	bc
 	push	de
 	push	hl
-	ld	de, value
 	ld	b, logid
 	call	Log16
 	pop	hl
@@ -521,13 +520,12 @@
 	.endif
 .enddeflong
 
-.deflong LogUsbLowEvent16(logid, value)
+.deflong LogUsbLowEventDE(logid)
 	.ifdef	LOG_USB_LOW
 	push	af
 	push	bc
 	push	de
 	push	hl
-	ld	de, value
 	ld	b, logid
 	call	Log16
 	pop	hl
@@ -537,13 +535,12 @@
 	.endif
 .enddeflong
 
-.deflong LogUsbPhyEvent16(logid, value)
+.deflong LogUsbPhyEventDE(logid)
 	.ifdef	LOG_USB_PHY
 	push	af
 	push	bc
 	push	de
 	push	hl
-	ld	de, value
 	ld	b, logid
 	call	Log16
 	pop	hl
@@ -553,13 +550,12 @@
 	.endif
 .enddeflong
 
-.deflong LogUsbProtEvent16(logid, value)
+.deflong LogUsbProtEventDE(logid)
 	.ifdef	LOG_USB_PROT
 	push	af
 	push	bc
 	push	de
 	push	hl
-	ld	de, value
 	ld	b, logid
 	call	Log16
 	pop	hl
@@ -569,6 +565,60 @@
 	.endif
 .enddeflong
 
+.deflong UnitTestPrint(str)
+	.ifdef	UNIT_TESTS
+	push	hl
+	ld	hl, {+}
+	call	PutS
+	jr	{++}
++:	.db	str, 0
+++:	pop	hl
+	.endif
+.enddeflong
+
+.deflong UnitTestPrintHL()
+	.ifdef	UNIT_TESTS
+	push	hl
+	push	af
+	call	DispHL
+	pop	af
+	pop	hl
+	.endif
+.enddeflong
+
+.deflong UnitTestPrintDE()
+	.ifdef	UNIT_TESTS
+	push	hl
+	push	de
+	push	af
+	ex	de, hl
+	call	DispHL
+	pop	af
+	pop	de
+	pop	hl
+	.endif
+.enddeflong
+
+.deflong UnitTestPrintA()
+	.ifdef	UNIT_TESTS
+	push	hl
+	push	af
+	call	DispByte
+	pop	af
+	pop	hl
+	.endif
+.enddeflong
+
+.deflong UnitTestPrintChar(char)
+	.ifdef	UNIT_TESTS
+	push	hl
+	push	af
+	ld	a, char
+	call	PutC
+	pop	af
+	pop	hl
+	.endif
+.enddeflong
 
 ;------ Structs ----------------------------------------------------------------
 ; 32-bit page/address pointer
