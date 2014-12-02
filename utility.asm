@@ -302,7 +302,10 @@ _showDataNoHighlight:
 .endif
 	dec	c
 	jr	nz, _showDataLineLoop
-	ld	e, (iy)
+	ld	a, (iy)
+	or	a
+	jr	z, {2@}
+	ld	e, a
 	inc	iy
 @:	ld	l, (iy)
 	inc	iy
@@ -321,7 +324,7 @@ _showDataNoHighlight:
 	call	NewLineClrEOL2
 	dec	e
 	jr	nz, {-1@}
-	call	FinishClearWind
+@:	call	FinishClearWind
 	ret
 _dumpHeader:
 	.db	"     ", 0

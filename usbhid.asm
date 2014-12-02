@@ -346,6 +346,7 @@ thingy:
 	
 	.db	skClear
 	.dw	Quit
+randomNullByte:
 	.db	0
 
 menuResetLog:

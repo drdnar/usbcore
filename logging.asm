@@ -340,7 +340,8 @@ LogItem:
 
 dumpLog:
 	ld	ix, (logStartAddress)
-	ld	c, 24
+	ld	iy, randomNullByte
+	ld	c, 25
 	in	a, (pMPgA)
 	push	af
 	ld	a, (logPage)
