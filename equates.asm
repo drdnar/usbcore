@@ -331,6 +331,74 @@
 
 ; USB LOGGING
 
+logReg16	.equ	80h
+logNoReg	.equ	0
+logRegA		.equ	1
+logRegBC	.equ	2 + logReg16
+logRegC		.equ	2
+logRegB		.equ	3
+logRegDE	.equ	4 + logReg16
+logRegE		.equ	4
+logRegD		.equ	5
+logRegHL	.equ	6 + logReg16
+logRegL		.equ	6
+logRegH		.equ	7
+logRegIX	.equ	8 + logReg16
+logRegIXL	.equ	8
+logRegIXH	.equ	9
+logRegIY	.equ	10 + logReg16
+logRegIYL	.equ	10
+logRegIYH	.equ	11
+logRegPC	.equ	12 + logReg16
+
+.deflong LogEvent(logid, logtype)
+.ifdef	LOGGING_ENABLED
+	call	LogItem
+	.db	logid
+	.db	logtype
+.endif
+.enddeflong
+
+.deflong LogUsbIntEvent(logid, logtype)
+.ifdef	LOG_USB_INT
+	call	LogItem
+	.db	logid
+	.db	logtype
+.endif
+.enddeflong
+
+.deflong LogUsbLowEvent(logid, logtype)
+.ifdef	LOG_USB_LOW
+	call	LogItem
+	.db	logid
+	.db	logtype
+.endif
+.enddeflong
+
+.deflong LogUsbPhyEvent(logid, logtype)
+.ifdef	LOG_USB_PHY
+	call	LogItem
+	.db	logid
+	.db	logtype
+.endif
+.enddeflong
+
+.deflong LogUsbProtEvent(logid, logtype)
+.ifdef	LOG_USB_PROT
+	call	LogItem
+	.db	logid
+	.db	logtype
+.endif
+.enddeflong
+
+.deflong LogUsbQueueEvent(logid, logtype)
+.ifdef	LOG_USB_QUEUE
+	call	LogItem
+	.db	logid
+	.db	logtype
+.endif
+.enddeflong
+
 .deflong LogEventByte(logid)
 .ifdef	LOGGING_ENABLED
 	push	af
@@ -653,17 +721,17 @@ chTab		.equ	02h
 chBackspace	.equ	03h
 chDel		.equ	03h
 ch1stPrintableChar	.equ	4
-chHeartSuite	.equ	04h
+chCheckBox	.equ	04h
 chClear		.equ	04h
-chDiamondSuite	.equ	05h
+chCheckedBox	.equ	05h
 ch2ndClear	.equ	05h
-chClubSuite	.equ	06h
+chCheckedBox2	.equ	06h
 chAlphaClear	.equ	06h
-chSpadeSuite	.equ	07h
+chOpenRadio	.equ	07h
 ch2ndDel	.equ	07h
-chBullet	.equ	08h
+chFilledRadio	.equ	08h
 chInsert	.equ	09h
-chWhiteBullet	.equ	09h
+chBullet	.equ	09h
 chAlphaDel	.equ	0Ah
 chRight		.equ	0Ah
 chLeft		.equ	0Bh
@@ -704,11 +772,19 @@ chCurUnderline	.equ	03h
 
 
 ;------ Screen & Text ----------------------------------------------------------
+.ifndef	SMALL_FONT
 charWidth = 9
 charHeight = 14
 charLength = 16
 textRows = 17
 textCols = 35
+.else
+charWidth = 6
+charHeight = 9
+charLength = 7
+textRows = 26
+textCols = 53
+.endif
 colorScrnHeight = 240
 colorScrnWidth = 320
 minBacklightLevel = 32

@@ -1,4 +1,49 @@
 UnlockFlash:
+;	ld	iy, unlockFlashRoutine-2
+;	jp	ExecRamCode
+
+;	.dw	unlockFlashRoutineEnd-unlockFlashRoutine
+unlockFlashRoutine:
+;This is only going to work properly on known 84+CSE boot code 4.0.
+	di
+	in a,(0Eh)
+	push af
+	in a,(6)
+	push af
+	ld a,1
+	out (0Eh),a
+	ld a,7Fh
+	out (6),a
+	ld hl,81FAh ;81 comes from i + flags, FA comes from lower byte of return address from boot code
+	ld (hl),0C3h
+	inc hl
+;	ld (hl),(+_ - unlockFlashRoutine + microsRamCode) & 0FFh
+	ld (hl), {@} & 0FFh
+	inc hl
+;	ld (hl),(+_ - unlockFlashRoutine + microsRamCode) >> 8
+	ld (hl), {@} >> 8
+	ld a,1
+	out (5),a
+	ld hl,0
+	add hl,sp
+	ex de,hl
+	ld sp,8282h+4000h+2+2+2+2-1 ;8282h comes from boot code "call IX" routine, offsets come from boot code stack trace
+	ld a,80h
+	ld i,a
+	jp 430Ah ;430Ah comes from boot code "erase sector 0" reboot code
+@:	ex de,hl
+	ld sp,hl
+	xor a
+	out (5),a
+	pop af
+	out (6),a
+	pop af
+	out (0Eh),a
+	ret
+unlockFlashRoutineEnd:
+
+.ifdef	NEVER
+UnlockFlash:
 ;Unlocks Flash protection.
 ;Destroys:
 ;	ramCode
@@ -173,3 +218,4 @@ findByte:
 matchSoFar:
 	inc hl
 	jr searchLoop
+.endif

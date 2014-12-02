@@ -1,11 +1,12 @@
+unitTestsMenuShow:
+	call	SetFullScrnWind
+	ld	hl, unitTestsMenu
+	jp	Menu
+
 	.db	0
 unitTestsMenu:
 ;		 1234567890123456 C 0123456789012345
-;	.db	"            UNIT TESTS
-	.db	"           "
-	.db	80h, ('U'|80h), ('N'|80h), ('I'|80h), ('T'|80h), (' '|80h)
-	.db	('T'|80h), ('E'|80h), ('S'|80h), ('T'|80h), ('S'|80h)
-	.db	80h, chNewLine
+	.db	"UNIT TESTS", 0
 	.db	"1. Start driver", chNewLine
 	.db	"2. Queue tests", chNewLine
 	.db	"3. Buffering tests"
@@ -13,7 +14,7 @@ unitTestsMenu:
 	.db	sk1
 	.dw	_doStartDriver
 	.db	sk2
-	.dw	_queueTests - 1
+	.dw	_queueTestsMenu
 	.db	sk3
 	.dw	_bufferTests - 1
 	.db	skClear
@@ -22,51 +23,87 @@ unitTestsMenu:
 
 _queueTests:
 ;		 1234567890123456 C 0123456789012345
-;	.db	"            QUEUE TESTS
-	.db	"            "
-	.db	80h, ('Q'|80h), ('U'|80h), ('E'|80h), ('U'|80h), ('E'|80h), (' '|80h)
-	.db	('T'|80h), ('E'|80h), ('S'|80h), ('T'|80h), ('S'|80h)
-	.db	80h, chNewLine
-	.db	"1. Show queue", chNewLine
-	.db	"2. Flush queue", chNewLine
-	.db	"3. Add event", chNewLine
-	.db	"4. Run one queue event", chNewLine
-	.db	"5. Run all queue events", chNewLine
-	.db	"6. Add byte", chNewLine
-	.db	"7. Add word", chNewLine
+	.db	"QUEUE TESTS", 0
+	.db	"1. Flush queue", chNewLine
+	.db	"2. Add event", chNewLine
+	.db	"3. Run one queue event", chNewLine
+	.db	"4. Run all queue events", chNewLine
+	.db	"5. Add byte", chNewLine
+	.db	"6. Add word", chNewLine
 	.db	0
 	.db	sk1
-	.dw	_showQueue
-	.db	sk2
-	.dw	_doStartDriver
-	.db	sk3
 	.dw	_flushQueue
 	
-	.db	sk6
+	.db	sk5
 	.dw	_queueByte
-	.db	sk7
+	.db	sk6
 	.dw	_queueWord
 	.db	skClear
-	.dw	unitTestsMenu - 1
+	.dw	unitTestsMenuShow
 	.db	0
 
 _bufferTests:
-;		 1234567890123456 C 0123456789012345
-;	.db	"           BUFFER TESTS
-	.db	"           "
-	.db	80h, ('B'|80h), ('U'|80h), ('F'|80h), ('F'|80h), ('E'|80h), ('R'|80h), (' '|80h)
-	.db	('T'|80h), ('E'|80h), ('S'|80h), ('T'|80h), ('S'|80h)
-	.db	80h, chNewLine
-	.db	"1. Show buffer", chNewLine
-	.db	"2. Flush byffer", chNewLine
-	.db	"3. Add byte", chNewLine
-	.db	"4. Remove byte", chNewLine
-	.db	"5. TX packet", chNewLine
-	.db	"6. RX packet", chNewLine
+	.db	"BUFFER TESTS", 0
+	.db	"1. TX Buffer", chNewLine
+	.db	"2. RX Buffer", chNewLine
 	.db	0
+	.db	sk1
+	.dw	_txBufferMenuShow
+	.db	sk2
+	.dw	_rxBufferMenuShow
 	.db	skClear
-	.dw	unitTestsMenu - 1
+	.dw	unitTestsMenuShow
 	.db	0
+
+_txBufferMenu:
+	.db	"TX BUFFER TESTS", 0
+	.db	"1. Flush buffer", chNewLine
+	.db	"2. Add byte", chNewLine
+	.db	"3. Remove byte", chNewLine
+	.db	"4. TX packet", chNewLine
+	.db	0
+	.db	sk1
+	.dw	_flushTxBuffer
+	.db	skClear
+	.dw	unitTestsMenuShow
+	.db	0
+
+_rxBufferMenu:
+	.db	"RX BUFFER TESTS", 0
+	.db	"1. Flush buffer", chNewLine
+	.db	"2. Add byte", chNewLine
+	.db	"3. Remove byte", chNewLine
+	.db	"4. RX packet", chNewLine
+	.db	0
+	.db	sk1
+	.dw	_flushRxBuffer
+	.db	skClear
+	.dw	unitTestsMenuShow
+	.db	0
+
+_flushTxBuffer:
+	xor	a
+	call	FlushTxBuffer
+	jp	_txBufferMenuShow
+
+_flushRxBuffer:
+	xor	a
+	call	FlushRxBuffer
+	jp	_rxBufferMenuShow
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 _doStartDriver:
 	ld	hl, hidDriverSetupData
@@ -103,63 +140,78 @@ _queueWord:
 _enterData:
 	.db	"Enter data: ", 0
 ;		 1234567890123456 C 0123456789012345
-_dumpHeader:
-	.db	"      00 01 02 03 04 05 06 07", chNewLine, 0
 _writeStr:
 	.db	"Write ptr: ", 0
 _readStr:
 	.db	"Read ptr: ", 0
-_showQueue:
-	call	ClearWind
-	ld	hl, _dumpHeader
-	call	PutS
+
+
+
+.ifndef	SMALL_FONT
+lineLength	.equ	8
+.else
+lineLength	.equ	16
+.endif
+
+
+
+
+_queueVars:
+	.db	2
+	.dw	_writeStr
+	.dw	usbEvQWritePtr
+	.dw	_readStr
+	.dw	usbEvQReadPtr
+
+_txBufferVars:	;usbPipeBufferPtr
+	.db	2
+	.dw	_writeStr
+	.dw	hidTxPipe0Vars + usbPipeBufferWritePtr
+	.dw	_readStr
+	.dw	hidTxPipe0Vars + usbPipeBufferReadPtr
+
+_rxBufferVars:	;usbPipeBufferPtr
+	.db	2
+	.dw	_writeStr
+	.dw	hidRxPipe0Vars + usbPipeBufferWritePtr
+	.dw	_readStr
+	.dw	hidRxPipe0Vars + usbPipeBufferReadPtr
+
+_queueTestsMenu:
 	ld	ix, usbEvQueue
-	ld	c, 4
-_showQueueLineLoop:
-	push	ix
-	pop	hl
-	call	DispHL
-	ld	a, ':'
-	call	PutC
-	ld	b, 8
-_showQueueByteLoop:
-	ld	a, ' '
-	call	PutC
-	ld	a, (usbEvQWritePtr)
-	ld	hl, flags + mTextFlags
-	cp	ixl
-	jr	z, {@}
-	ld	a, (usbEvQReadPtr)
-	cp	ixl
-	jr	nz, {2@}
-@:	set	mTextInverse, (hl)
-;	ld	a, '.'
-;	call	PutC
-@:	ld	a, (ix)
-	inc	ix
-	call	DispByte
-	res	mTextInverse, (hl)
-	djnz	_showQueueByteLoop
-	call	NewLine
-	dec	c
-	jr	nz, _showQueueLineLoop
-	ld	hl, _writeStr
-	call	PutS
-	ld	hl, (usbEvQWritePtr)
-	call	DispHL
-	call	NewLine
-	ld	hl, _readStr
-	call	PutS
-	ld	hl, (usbEvQReadPtr)
-	call	DispHL
-	call	NewLine
-	call	ClearAllShiftFlags
-	ld	a, cursorOtherMask
-	ld	(flags + mCursorFlags), a
-	ld	a, chCurUnderline
-	ld	(cursorChar), a
-	call	CursorOn
-	call	GetKey
-	call	CursorOff
+	ld	c, 32 / lineLength
+	ld	iy, _queueVars
 	ld	hl, _queueTests
+	jr	_windowedHexViewThingy
+
+_txBufferMenuShow:
+	ld	ix, hidControlTxBuffer
+	ld	c, 64 / lineLength
+	ld	iy, _txBufferVars
+	ld	hl, _txBufferMenu
+	jr	_windowedHexViewThingy
+
+_rxBufferMenuShow:
+	ld	ix, hidControlRxBuffer
+	ld	c, 64 / lineLength
+	ld	iy, _rxBufferVars
+	ld	hl, _rxBufferMenu
+	jr	_windowedHexViewThingy
+
+;------ ------------------------------------------------------------------------
+_windowedHexViewThingy:
+	ld	a, 13
+	ld	(windTop), a
+	add	a, a
+	ld	(windBottom), a
+	push	hl
+	call	ShowHexDump
+	pop	hl
+	xor	a
+	ld	(windTop), a
+	ld	a, 13
+	ld	(windBottom), a
 	jp	Menu
+
+
+;------ ------------------------------------------------------------------------

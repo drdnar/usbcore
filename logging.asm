@@ -1,3 +1,147 @@
+
+.deflong LogTableEntry(symbol, datalength, text)
+	.echo	"THINGY: ", text, " "
+	.db	datalength
+	.db	text
+	.db	0
+	symbol .equ logIdCurrent
+	.echo	logIdCurrent, "\n"
+	logIdCurrent = logIdCurrent + 1
+.enddeflong
+
+.deflong LogTableUsbIntEntry(symbol, datalength, text)
+	.ifdef	LOG_USB_INT
+;		LogTableEntry(symbol, datalength, text)
+		.db	datalength
+		.db	text
+		.db	0
+		symbol = logIdCurrent
+		logIdCurrent = logIdCurrent + 1
+	.endif
+.enddeflong
+
+.deflong LogTableUsbLowEntry(symbol, datalength, text)
+	.ifdef	LOG_USB_LOW
+;		LogTableEntry(symbol, datalength, text)
+		.db	datalength
+		.db	text
+		.db	0
+		symbol = logIdCurrent
+		logIdCurrent = logIdCurrent + 1
+	.endif
+.enddeflong
+
+.deflong LogTableUsbPhyEntry(symbol, datalength, text)
+	.ifdef	LOG_USB_PHY
+;		LogTableEntry(symbol, datalength, text)
+		.db	datalength
+		.db	text
+		.db	0
+		symbol = logIdCurrent
+		logIdCurrent = logIdCurrent + 1
+	.endif
+.enddeflong
+
+.deflong LogTableUsbProtEntry(symbol, datalength, text)
+	.ifdef	LOG_USB_PROT
+;		LogTableEntry(symbol, datalength, text)
+		.db	datalength
+		.db	text
+		.db	0
+		symbol = logIdCurrent
+		logIdCurrent = logIdCurrent + 1
+	.endif
+.enddeflong
+
+.deflong LogTableUsbQueueEntry(symbol, datalength, text)
+	.ifdef	LOG_USB_QUEUE
+;		LogTableEntry(symbol, datalength, text)
+		.db	datalength
+		.db	text
+		.db	0
+		symbol = logIdCurrent
+		logIdCurrent = logIdCurrent + 1
+	.endif
+.enddeflong
+
+
+.echo	"\n{"
+.echo	lidUsbStart, ", "
+.echo	lidUsbStop, ", "
+.echo	lidTest, ", "
+.echo	lidTest2, "}\n"
+
+
+logIdCurrent	.equ	0
+LogInfoTable:
+log_table_start:
+	LogTableEntry(lidUsbStart, 0, "USB start")
+	LogTableEntry(lidUsbStop, 0, "USB stop")
+	LogTableEntry(lidTest, 1, "test: ")
+	LogTableEntry(lidTest2, 2, "test2: ")
+	
+.echo	"\n{"
+.echo	lidUsbStart, ", "
+.echo	lidUsbStop, ", "
+.echo	lidTest, ", "
+.echo	lidTest2, "}\n"
+	
+;	LogTableUsbIntEntry(lidUsbIntSuspend, 0, "INT suspend")
+;	LogTableUsbIntEntry(lidUsbInt
+	
+	LogTableUsbIntEntry(lidUsbIntDo, 1, "INT ")
+	LogTableUsbIntEntry(lidUsbIntSuspend, 0, "INT suspend")
+	LogTableUsbIntEntry(lidUsbIntVScreen, 0, "INT ViewScreen")
+	LogTableUsbIntEntry(lidUsbIntVBusTimeout, 0, "INT v-bus timeout")
+	LogTableUsbIntEntry(lidUsbIntLine, 1, "INT LINE ")
+	LogTableUsbIntEntry(lidUsbIntLineBDisconnect, 0, "INT LINE B disconnect")
+	LogTableUsbIntEntry(lidUsbIntLineBConnect, 0, "INT LINE B connect")
+	LogTableUsbIntEntry(lidUsbIntLineAConnect, 0, "INT LINE A connect")
+	LogTableUsbIntEntry(lidUsbIntLineADisconnect, 0, "INT LINE A disconnect")
+	LogTableUsbIntEntry(lidUsbIntProt, 1, "INT PROT ")
+	LogTableUsbIntEntry(lidUsbIntTxComplete, 1, "INT TX complete")
+	LogTableUsbIntEntry(lidUsbIntRxComplete, 1, "INT RX complete")
+	LogTableUsbQueueEntry(lidUsbQueueProcessEvents, 0, "INT QUEUE start")
+	LogTableUsbQueueEntry(lidUsbQueueProcessEvent, 2, "INT DEQUEUE call back: ")
+	LogTableUsbQueueEntry(lidUsbQueueProcessEventsDone, 0, "INT DEQUEUE stop")
+	
+.ifdef	NEVER
+	LogTableUsbIntEntry(lidUsbIntDo, 1, "INT ")
+	LogTableUsbIntEntry(lidUsbIntSuspend, 0, "INT suspend")
+	LogTableUsbIntEntry(lidUsbIntLine, 1, "INT line ")
+	LogTableUsbIntEntry(lidUsbIntProt, 2, "INT prot ")	; high byte is port 86, low is port 8F
+	LogTableUsbIntEntry(lidUsbIntBusReset, 0, "INT bus reset")
+	LogTableUsbIntEntry(lidUsbIntControlPipe, 1, "INT control pipe ")
+	LogTableUsbIntEntry(lidUsbIntStall, 0, "INT control STALL")
+	LogTableUsbIntEntry(lidUsbIntNakThingy, 0, "INT control NAK thingy")
+	LogTableUsbIntEntry(lidUsbIntSetAddress, 1, "INT set address ")
+	LogTableUsbIntEntry(lidUsbIntControlStart, 8, "INT RX CTRL ")
+	LogTableUsbIntEntry(lidUsbIntDoControlStall, 0, "INT CTRL do STALL")
+	LogTableUsbIntEntry(lidUsbIntSetConf, 1, "INT CTRL set configuration ")
+	LogTableUsbIntEntry(lidUsbIntSetAddr, 1, "INT CTRL set addr ")
+	LogTableUsbIntEntry(lidUsbIntDevToHost, 1, "INT CTRL dev to host ")
+	LogTableUsbIntEntry(lidUsbIntControlReponse, 0, "INT CTRL response start")
+	LogTableUsbIntEntry(lidUsbIntControlOutCont, 2, "INT CTRL response cont ")
+	LogTableUsbIntEntry(lidUsbIntOutSuccess, 0, "INT outgoing success")
+	LogTableUsbIntEntry(lidUsbIntInReady, 0, "INT incoming ready")
+	LogTableUsbLowEntry(lidUsbLowInitPeriph, 0, "LOW init peripheral")
+	LogTableUsbLowEntry(lidUsbLowStallControl, 0, "LOW CTRL STALL")
+	LogTableUsbLowEntry(lidUsbLowFinishControl, 0, "LOW CTRL finish")
+	LogTableUsbLowEntry(lidUsbLowGetControl, 0, "LOW get CTRL")
+	LogTableUsbLowEntry(lidUsbLowWaitPort82, 0, "LOW wait on port 82h")
+	LogTableUsbLowEntry(lidUsbLowTx, 1, "LOW TX packet pipe ")
+	LogTableUsbLowEntry(lidUsbLowTxStatus, 1, "LOW TX packet status ")
+	LogTableUsbPhyEntry(lidUsbPhyDisable, 0, "PHY disable")
+	LogTableUsbPhyEntry(lidUsbPhyDriverInit, 0, "PHY driver init")
+	LogTableUsbProtEntry(lidUsbProtKbdCtrlReqClass, 1, "HID class-specific CTRL ")
+	LogTableUsbProtEntry(lidUsbProtKbdGetReport, 0, "HID get report")
+.endif
+log_table_end:
+
+
+
+
+
 ShowLog:
 	ld	hl, (logStartAddress)
 	ld	(logReadAddress), hl
@@ -144,132 +288,71 @@ GetEntryInfo:
 	
 	
 
+LogItem:
+	; RET ADDR	; ix + 13, 12
+	push	iy	; ix + 11, 10
+	push	ix	; ix + 9, 8
+	push	hl	; ix + 7, 6
+	push	de	; ix + 5, 4
+	push	bc	; ix + 3, 2
+	push	af	; ix + 1, 0
+	ld	ix, 0
+	add	ix, sp
+	ld	l, (ix + 12)
+	ld	h, (ix + 13)
+	ld	b, (hl)
+	inc	hl
+	ld	c, (hl)
+	inc	hl
+	ld	(ix + 12), l
+	ld	(ix + 13), h
+	call	LogByte
+	ld	a, c
+	or	a
+	jr	z, {@}
+	res	7, c
+	ld	b, 0
+	add	ix, bc
+	ld	b, (ix)
+	push	af
+	call	LogByte
+	pop	af
+	and	80h
+	jr	z, {@}
+	inc	ix
+	ld	b, (ix)
+	call	LogByte
+@:	ld	hl, (logCount)
+	inc	hl
+	ld	(logCount), hl
+	pop	af
+	pop	bc
+	pop	de
+	pop	hl
+	pop	ix
+	pop	iy
+	ret
 
 
 
 
-.deflong LogTableEntry(symbol, datalength, text)
-	.echo	"THINGY: ", text, " "
-	.db	datalength
-	.db	text
-	.db	0
-	symbol = logIdCurrent
-	.echo	logIdCurrent, "\n"
-	logIdCurrent = logIdCurrent + 1
-.enddeflong
-
-.deflong LogTableUsbIntEntry(symbol, datalength, text)
-	.ifdef	LOG_USB_INT
-;		LogTableEntry(symbol, datalength, text)
-		.db	datalength
-		.db	text
-		.db	0
-		symbol = logIdCurrent
-		logIdCurrent = logIdCurrent + 1
-	.endif
-.enddeflong
-
-.deflong LogTableUsbLowEntry(symbol, datalength, text)
-	.ifdef	LOG_USB_LOW
-;		LogTableEntry(symbol, datalength, text)
-		.db	datalength
-		.db	text
-		.db	0
-		symbol = logIdCurrent
-		logIdCurrent = logIdCurrent + 1
-	.endif
-.enddeflong
-
-.deflong LogTableUsbPhyEntry(symbol, datalength, text)
-	.ifdef	LOG_USB_PHY
-;		LogTableEntry(symbol, datalength, text)
-		.db	datalength
-		.db	text
-		.db	0
-		symbol = logIdCurrent
-		logIdCurrent = logIdCurrent + 1
-	.endif
-.enddeflong
-
-.deflong LogTableUsbProtEntry(symbol, datalength, text)
-	.ifdef	LOG_USB_PROT
-;		LogTableEntry(symbol, datalength, text)
-		.db	datalength
-		.db	text
-		.db	0
-		symbol = logIdCurrent
-		logIdCurrent = logIdCurrent + 1
-	.endif
-.enddeflong
 
 
-logIdCurrent	.equ	0
-LogInfoTable:
-log_table_start:
-	LogTableEntry(lidUsbStart, 0, "USB start")
-	LogTableEntry(lidUsbStop, 0, "USB stop")
-	LogTableEntry(lidTest, 1, "test")
-	
-;	LogTableUsbIntEntry(lidUsbIntSuspend, 0, "INT suspend")
-;	LogTableUsbIntEntry(lidUsbInt
-	
-	LogTableUsbIntEntry(lidUsbIntDo, 1, "INT ")
-	LogTableUsbIntEntry(lidUsbIntSuspend, 0, "INT suspend")
-	LogTableUsbIntEntry(lidUsbIntVScreen, 0, "INT ViewScreen")
-	LogTableUsbIntEntry(lidUsbIntVBusTimeout, 0, "INT v-bus timeout")
-	LogTableUsbIntEntry(lidUsbIntLine, 1, "INT LINE ")
-	LogTableUsbIntEntry(lidUsbIntLineBDisconnect, 0, "INT LINE B disconnect")
-	LogTableUsbIntEntry(lidUsbIntLineBConnect, 0, "INT LINE B connect")
-	LogTableUsbIntEntry(lidUsbIntLineAConnect, 0, "INT LINE A connect")
-	LogTableUsbIntEntry(lidUsbIntLineADisconnect, 0, "INT LINE A disconnect")
-	LogTableUsbIntEntry(lidUsbIntProt, 1, "INT PROT ")
-	LogTableUsbIntEntry(lidUsbIntTxComplete, 1, "INT TX complete")
-	LogTableUsbIntEntry(lidUsbIntRxComplete, 1, "INT RX complete")
-	LogTableUsbIntEntry(lidUsbIntProcessEvents, 0, "INT QUEUE start")
-	LogTableUsbIntEntry(lidUsbIntProcessEvent, 2, "INT DEQUEUE call back: ")
-	LogTableUsbIntEntry(lidUsbIntProcessEventsDone, 0, "INT DEQUEUE stop")
-	
+dumpLog:
+	ld	ix, (logStartAddress)
+	ld	c, 24
+	in	a, (pMPgA)
+	push	af
+	ld	a, (logPage)
+	out	(pMPgA), a
+	call	ShowHexDump
+	pop	af
+	out	(pMPgA), a
+	call	GetKey
+	jp	Restart
+
+
 .ifdef	NEVER
-	LogTableUsbIntEntry(lidUsbIntDo, 1, "INT ")
-	LogTableUsbIntEntry(lidUsbIntSuspend, 0, "INT suspend")
-	LogTableUsbIntEntry(lidUsbIntLine, 1, "INT line ")
-	LogTableUsbIntEntry(lidUsbIntProt, 2, "INT prot ")	; high byte is port 86, low is port 8F
-	LogTableUsbIntEntry(lidUsbIntBusReset, 0, "INT bus reset")
-	LogTableUsbIntEntry(lidUsbIntControlPipe, 1, "INT control pipe ")
-	LogTableUsbIntEntry(lidUsbIntStall, 0, "INT control STALL")
-	LogTableUsbIntEntry(lidUsbIntNakThingy, 0, "INT control NAK thingy")
-	LogTableUsbIntEntry(lidUsbIntSetAddress, 1, "INT set address ")
-	LogTableUsbIntEntry(lidUsbIntControlStart, 8, "INT RX CTRL ")
-	LogTableUsbIntEntry(lidUsbIntDoControlStall, 0, "INT CTRL do STALL")
-	LogTableUsbIntEntry(lidUsbIntSetConf, 1, "INT CTRL set configuration ")
-	LogTableUsbIntEntry(lidUsbIntSetAddr, 1, "INT CTRL set addr ")
-	LogTableUsbIntEntry(lidUsbIntDevToHost, 1, "INT CTRL dev to host ")
-	LogTableUsbIntEntry(lidUsbIntControlReponse, 0, "INT CTRL response start")
-	LogTableUsbIntEntry(lidUsbIntControlOutCont, 2, "INT CTRL response cont ")
-	LogTableUsbIntEntry(lidUsbIntOutSuccess, 0, "INT outgoing success")
-	LogTableUsbIntEntry(lidUsbIntInReady, 0, "INT incoming ready")
-	LogTableUsbLowEntry(lidUsbLowInitPeriph, 0, "LOW init peripheral")
-	LogTableUsbLowEntry(lidUsbLowStallControl, 0, "LOW CTRL STALL")
-	LogTableUsbLowEntry(lidUsbLowFinishControl, 0, "LOW CTRL finish")
-	LogTableUsbLowEntry(lidUsbLowGetControl, 0, "LOW get CTRL")
-	LogTableUsbLowEntry(lidUsbLowWaitPort82, 0, "LOW wait on port 82h")
-	LogTableUsbLowEntry(lidUsbLowTx, 1, "LOW TX packet pipe ")
-	LogTableUsbLowEntry(lidUsbLowTxStatus, 1, "LOW TX packet status ")
-	LogTableUsbPhyEntry(lidUsbPhyDisable, 0, "PHY disable")
-	LogTableUsbPhyEntry(lidUsbPhyDriverInit, 0, "PHY driver init")
-	LogTableUsbProtEntry(lidUsbProtKbdCtrlReqClass, 1, "HID class-specific CTRL ")
-	LogTableUsbProtEntry(lidUsbProtKbdGetReport, 0, "HID get report")
-.endif
-log_table_end:
-
-
-
-
-
-
-
-
-
 LoggingTest:
 	call	ClearWind
 	ld	hl, (logStartAddress)
@@ -291,6 +374,8 @@ logtestloop:
 	jr	z, log2
 	cp	sk3
 	jr	z, log3
+	cp	sk4
+	jr	z, log4
 	cp	skClear
 	jp	Restart
 log1:
@@ -298,6 +383,7 @@ log1:
 	call	LogNull
 	jr	logtestloop
 log2:
+.echo	"\n\n<", lidUsbStop, ">\n\n"
 	ld	b, lidUsbStop
 	call	LogNull
 	jr	logtestloop
@@ -307,9 +393,36 @@ log3:
 	ld	e, a
 	call	Log8
 	jr	logtestloop
-
-
-
+log4:
+	LogEvent(lidUsbStop, logNoReg)
+	ld	a, 11h
+	LogEvent(lidTest, logRegA)
+	ld	b, 22h
+	LogEvent(lidTest, logRegB)
+	ld	c, 33h
+	LogEvent(lidTest, logRegC)
+	ld	d, 44h
+	LogEvent(lidTest, logRegD)
+	ld	e, 55h
+	LogEvent(lidTest, logRegE)
+	ld	h, 66h
+	LogEvent(lidTest, logRegH)
+	ld	l, 77h
+	LogEvent(lidTest, logRegL)
+	ld	ixh, 88h
+	LogEvent(lidTest, logRegIXH)
+	ld	ixl, 99h
+	LogEvent(lidTest, logRegIXL)
+	ld	bc, 0102h
+	LogEvent(lidTest2, logRegBC)
+	ld	de, 0304h
+	LogEvent(lidTest2, logRegDE)
+	ld	hl, 0506h
+	LogEvent(lidTest2, logRegHL)
+	ld	ix, 0708h
+	LogEvent(lidTest2, logRegIX)
+	jp	logtestloop
+.endif
 
 ResetLog:
 ; Inputs:

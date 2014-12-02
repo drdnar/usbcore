@@ -257,6 +257,28 @@ foundNibble:
 	ret
 
 
+;------ BlinkyGetKey -----------------------------------------------------------
+BlinkyGetKey:
+; Blinky version of GetKey.
+; Input:
+;  - A: Cursor char
+; Output:
+;  - A: Key code
+; Destroys:
+;  - Flags
+	ld	a, chCurUnderline
+	ld	(cursorChar), a
+	call	ClearAllShiftFlags
+	ld	a, cursorOtherMask
+	ld	(flags + mCursorFlags), a
+	call	CursorOn
+	call	GetKey
+	push	af
+	call	CursorOff
+	pop	af
+	ret
+
+
 ;------ GetKey -----------------------------------------------------------------
 GetKey:
 ; Waits for a keypress, and returns it.

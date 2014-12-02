@@ -30,26 +30,38 @@ hidDriverSetupData:
 	.db	usbPipeFlagAutoBufferB	; usbPipeFlags
 	.db	64 / 8			; Max packet size
 	.dw	0			; usbPipeDataProcCb
+	.db	0			; usbPipeDataProcCbPg
 	.dw	hidControlTxBuffer	; usbPipeBufferPtr
+	.db	0			; usbPipeBufferPtrPg
 	.dw	64			; usbPipeBufferSize
 	.dw	hidControlTxBuffer	; usbPipeBufferReadPtr
+	.db	0			; usbPipeBufferReadPtrPg
 	.dw	hidControlTxBuffer	; usbPipeBufferWritePtr
+	.db	0			; usbPipeBufferWritePtrPg
 ; TX HID interrupt pipe
 	.db	0			; usbPipeFlags
 	.db	8 / 8			; Max packet size
 	.dw	0			; usbPipeDataProcCb
+	.db	0			; usbPipeDataProcCbPg
 	.dw	hidInterruptBuffer	; usbPipeBufferPtr
+	.db	0			; usbPipeBufferPtrPg
 	.dw	8			; usbPipeBufferSize
 	.dw	hidInterruptBuffer	; usbPipeBufferReadPtr
+	.db	0			; usbPipeBufferReadPtrPg
 	.dw	hidInterruptBuffer	; usbPipeBufferWritePtr
+	.db	0			; usbPipeBufferWritePtrPg
 ; RX control pipe
 	.db	usbPipeFlagAutoBufferB | usbPipeFlagCbIsTable	; usbPipeFlags
 	.db	64 / 8			; Max packet size
 	.dw	hidControlTable		; usbPipeDataProcCb
+	.db	0			; usbPipeDataProcCbPg
 	.dw	hidControlRxBuffer	; usbPipeBufferPtr
+	.db	0			; usbPipeBufferPtrPg
 	.dw	64			; usbPipeBufferSize
 	.dw	hidControlRxBuffer	; usbPipeBufferReadPtr
+	.db	0			; usbPipeBufferReadPtrPg
 	.dw	hidControlRxBuffer	; usbPipeBufferWritePtr
+	.db	0			; usbPipeBufferWritePtrPg
 ; Pipe flags usbPipeFlagCbOnIntrB usbPipeFlagAutoBufferB usbPipeFlagBufferFullB usbPipeFlagBufferEmptyB
 
 hidDescriptors:

@@ -199,6 +199,151 @@ _ddb:	inc	a
 	ret
 
 
+;------ ShowHexDump ------------------------------------------------------------
+ShowHexDump:
+; Shows some hex data, shows the value of certain variables, and highlights them
+; if in the hex dump.
+; Inputs:
+;  - C: Number of LINES to show
+;     - 8 bytes per line with large font
+;     - 16 bytes per line with small font
+;  - IX: Address of data to show
+;  - IY: Ptr to vars list
+;     - .db numberOfVars
+;     - .dw var1LabelStr
+;     - .dw var1Ptr
+;     - .dw var2LabelStr
+;     - .dw var2Ptr
+;     - &c.
+; Outputs:
+;  - Documented effects
+; Destroys:
+;  - AF
+;  - BC
+;  - DE
+;  - HL
+;  - IX
+;  - IY
+;	call	ClearWind
+	call	HomeUp
+	call	ToggleInverse
+	ld	hl, _dumpHeader
+	call	PutS
+	ld	e, ixl
+	dec	e
+.ifndef	SMALL_FONT
+	ld	b, 8
+.else
+	ld	b, 16
+.endif
+@:	ld	a, ' '
+	call	PutC
+	ld	a, e
+	inc	a
+	and	15
+	ld	e, a
+	call	DispByte
+	djnz	{-1@}
+	call	ToggleInverse
+_showDataLineLoop:
+	push	ix
+	pop	hl
+	call	DispHL
+	ld	a, ':'
+	call	PutC
+.ifndef	SMALL_FONT
+	ld	b, 8
+.else
+	ld	b, 16
+.endif
+_showDataByteLoop:
+	ld	a, ' '
+	call	PutC
+	push	iy
+	ld	d, 0
+	ld	a, (iy)
+	inc	iy
+	or	a
+	jr	z, _showDataNoHighlight
+	push	ix
+	pop	de
+_showDataByteCheckHighlightLoop:
+	inc	iy
+	inc	iy
+	ld	l, (iy)
+	inc	iy
+	ld	h, (iy)
+	inc	iy
+	ld	a, (hl)
+	inc	hl
+	ld	h, (hl)
+	ld	l, a
+	or	a
+	sbc	hl, de
+	jr	z, {@}
+	dec	a
+	jr	nz, _showDataByteCheckHighlightLoop
+	ld	d, 0
+	jr	_showDataNoHighlight
+@:	ld	hl, flags + mTextFlags
+	call	ToggleInverse
+	ld	d, 1
+_showDataNoHighlight:
+	pop	iy
+	ld	a, (ix)
+	inc	ix
+	call	DispByte
+	ld	hl, flags + mTextFlags
+	bit	0, d
+	call	nz, ToggleInverse
+	djnz	_showDataByteLoop
+.ifndef	SMALL_FONT
+	call	NewLine
+.endif
+	dec	c
+	jr	nz, _showDataLineLoop
+	ld	e, (iy)
+	inc	iy
+@:	ld	l, (iy)
+	inc	iy
+	ld	h, (iy)
+	inc	iy
+	call	PutS
+	ld	l, (iy)
+	inc	iy
+	ld	h, (iy)
+	inc	iy
+	ld	a, (hl)
+	inc	hl
+	ld	h, (hl)
+	ld	l, a
+	call	DispHL
+	call	NewLineClrEOL2
+	dec	e
+	jr	nz, {-1@}
+	call	FinishClearWind
+	ret
+_dumpHeader:
+	.db	"     ", 0
+.ifdef	NEVER
+;.ifndef	SMALL_FONT
+	.db	"      00 01 02 03 04 05 06 07", chNewLine, 0
+;.else
+;	.db	"      00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F", 0
+	.db	(' ' | 80h), (' ' | 80h), (' ' | 80h), (' ' | 80h), (' ' | 80h), (' ' | 80h)
+	.db	('0' | 80h), ('0' | 80h), (' ' | 80h), ('0' | 80h), ('1' | 80h), (' ' | 80h)
+	.db	('0' | 80h), ('2' | 80h), (' ' | 80h), ('0' | 80h), ('3' | 80h), (' ' | 80h)
+	.db	('0' | 80h), ('4' | 80h), (' ' | 80h), ('0' | 80h), ('5' | 80h), (' ' | 80h)
+	.db	('0' | 80h), ('6' | 80h), (' ' | 80h), ('0' | 80h), ('7' | 80h), (' ' | 80h)
+	.db	('0' | 80h), ('8' | 80h), (' ' | 80h), ('0' | 80h), ('9' | 80h), (' ' | 80h)
+	.db	('0' | 80h), ('A' | 80h), (' ' | 80h), ('0' | 80h), ('B' | 80h), (' ' | 80h)
+	.db	('0' | 80h), ('C' | 80h), (' ' | 80h), ('0' | 80h), ('D' | 80h), (' ' | 80h)
+	.db	('0' | 80h), ('E' | 80h), (' ' | 80h), ('0' | 80h), ('F' | 80h)
+	.db	0
+.endif
+
+
+;------ ------------------------------------------------------------------------
 .ifdef	NEVER
 ;------ DispA ------------------------------------------------------------------
 DispA:
@@ -303,6 +448,26 @@ _gsia:	cp	(hl)
 	ret
 
 
+;------ GetStrLength -----------------------------------------------------------
+GetStrLength:
+; Finds the null terminator in a string.
+; Input:
+;  - HL: Ptr to string
+; Output:
+;  - HL: Length
+;  - DE: Ptr to string
+; Destroys:
+;  - BC
+	ld	bc, 0
+	xor	a
+	ld	e, l
+	ld	d, h
+	cpir
+	or	a
+	sbc	hl, de
+	ret
+
+
 ;------ MapTable ---------------------------------------------------------------
 MapTable:
 ; Scans a table mapping an input in A to an output in B.
@@ -327,6 +492,38 @@ _mtd:	ld	b, (hl)
 	ret
 
 
+;------ DispHeaderText ---------------------------------------------------------
+DispHeaderText:
+; Displays a string, centered, in inverse text.
+; Input:
+;  - HL: Ptr to string
+; Outputs:
+;  - HL: Byte after null
+; Destroys:
+;  - AF
+;  - BC
+;  - DE
+	call	GetStrLength
+	ex	de, hl
+;	ld	a, textCols / 2 - 1
+	ld	a, (windLeft)
+	ld	b, a
+	ld	a, (windRight)
+	sub	b
+	srl	a
+	dec	a
+	srl	e
+	sub	e
+	ld	b, a
+	call	PutSpaces
+	call	ToggleInverse
+	call	PutSpace
+	call	PutS
+	call	PutSpace
+	call	ToggleInverse
+	jp	NewLineClrEOL
+
+
 ;------ Menu -------------------------------------------------------------------
 Menu:
 ; Simple menu routine.
@@ -336,6 +533,7 @@ Menu:
 ; This is a JUMP not a CALL!
 ; This passes the key that was pressed in B.
 	call	HomeUp
+	call	DispHeaderText
 	call	PutSClrWind ; hl = byte after 0
 	push	hl
 	pop	ix

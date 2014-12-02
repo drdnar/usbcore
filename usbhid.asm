@@ -206,9 +206,14 @@ CompStr:
 	.define	LOG_USB_LOW
 	.define	LOG_USB_PHY
 	.define	LOG_USB_PROT
+	.define	LOG_USB_QUEUE
 .endif
 
 
+
+.define	UNIT_TESTS
+
+.define	SMALL_FONT
 
 .nolist
 .include "ti84pcse.inc"
@@ -216,8 +221,6 @@ CompStr:
 .list
 .include "usbequates.asm"
 .include "equates.asm"
-
-.define	UNIT_TESTS
 
 .define	SWAP_BANK_A
 
@@ -262,6 +265,12 @@ AsmStart:
 	.relocate	userMem
 
 program_start:
+	call	UnlockFlash
+	xor	a
+	out	(pRamExecLowerLimit), a
+	dec	a
+	out	(pRamExecUpperLimit), a
+	b_call(_FlashWriteDisable)
 generic_stuff_start:
 	; Allow clean quitting
 	ld	(spInitial), sp
@@ -297,11 +306,7 @@ Restart:
 
 thingy:
 ;		 1234567890123456 C 0123456789012345
-;	.db	"            _MAIN MENU
-	.db	"            "
-	.db	80h, ('M'|80h), ('A'|80h), ('I'|80h), ('N'|80h), (' '|80h)
-	.db	('M'|80h), ('E'|80h), ('N'|80h), ('U'|80h)
-	.db	80h, chNewLine
+	.db	"MAIN MENU", 0
 ;	.db	"Test program is live, but there is "
 ;	.db	"nothing to do.", chNewLine
 	.db	"USB Peripheral Test Program", chNewLine
@@ -311,10 +316,15 @@ thingy:
 .else
 	.db	"1. Unit Tests", chNewLine
 .endif
+.ifdef	NEVER
 	.db	"7. Logging Test", chNewLine
+.endif
 	.db	"8. Reset Log", chNewLine
 	.db	"9. Read Log", chNewLine
-	.db	"Clear: Quit:"
+	
+	.db	"F1: Dump log", chNewLine
+	
+	.db	"Clear: Quit"
 	.db	0
 	.db	sk1
 .ifndef	UNIT_TESTS
@@ -322,12 +332,18 @@ thingy:
 .else
 	.dw	unitTestsMenu - 1
 .endif
+.ifdef	NEVER
 	.db	sk7
 	.dw	LoggingTest
+.endif
 	.db	sk8
 	.dw	menuResetLog
 	.db	sk9
 	.dw	ShowLog
+	
+	.db	skYEqu
+	.dw	dumpLog
+	
 	.db	skClear
 	.dw	Quit
 	.db	0
@@ -449,6 +465,11 @@ generic_stuff_end:
 
 ;====== Includes ===============================================================
 
+unlockflash_start:
+.include "unlockflash.asm"
+unlockflash_end:
+
+
 logging_start:
 .include "logging.asm"
 logging_end:
@@ -481,6 +502,8 @@ text_start:
 .include "textmode.asm"
 text_end:
 
+.echo	"Last executable address (C000 = 49152): ", $, "\n"
+
 data_start:
 .include "data.asm"
 data_end:
@@ -490,7 +513,11 @@ keyboard_data_start:
 keyboard_data_end:
 
 font_start:
+.ifndef	SMALL_FONT
 .include "font_data.asm"
+.else
+.include "font_small_data.asm"
+.endif
 font_end:
 
 
@@ -506,7 +533,7 @@ program_end:
 .echo	" Log strings size: ", log_table_end - log_table_start, " bytes\n"
 .echo	"USB driver size: ", usb_driver_end - usb_driver_start, " bytes\n"
 .echo	"HID demo size: ", hiddemo_end - hiddemo_start, " bytes\n"
-
+.echo	"Unlock flash size: ", unlockflash_end - unlockflash_start, " bytes\n"
 .echo	"Utility routines size: ", utility_end - utility_start, " bytes\n"
 .echo	"Interrupt driver size: ", interrupts_end - interrupts_start, " bytes\n"
 .echo	"Keyboard driver size: ", keyboard_end - keyboard_start, " bytes\n"

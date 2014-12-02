@@ -256,6 +256,33 @@ PutS:
 
 ;------ Locate -----------------------------------------------------------------
 Locate:
+; Moves the cursor to a specific location in the current window.
+; Inputs:
+;  - H: Column
+;  - L: Row
+; Output:
+;  - Cursor moved
+; Destroys:
+;  - Nothing
+	push	af
+	push	bc
+	push	de
+	push	hl
+	ld	de, (windTop)
+;	res	7, h
+	add	hl, de
+	ld	(currentRow), hl
+	call	SetCharRow
+	call	SetCharCol
+	pop	hl
+	pop	de
+	pop	bc
+	pop	af
+	ret
+
+
+;------ LocateAbsolute ---------------------------------------------------------
+LocateAbsolute:
 ; Moves the cursor to a specific location.
 ; Inputs:
 ;  - H: Column
@@ -264,11 +291,11 @@ Locate:
 ;  - Cursor moved
 ; Destroys:
 ;  - Nothing
-	ld	(currentRow), hl
 	push	af
 	push	bc
 	push	de
 	push	hl
+	ld	(currentRow), hl
 	call	SetCharRow
 	call	SetCharCol
 	pop	hl
@@ -288,10 +315,7 @@ HomeUp:
 ; Destroys:
 ;  - A
 	push	hl
-	ld	a, (windTop)
-	ld	l, a
-	ld	a, (windLeft)
-	ld	h, a
+	ld	hl, 0	
 	call	Locate
 	pop	hl
 	ret
@@ -608,6 +632,21 @@ tabRestoreRegisters:
 	ret
 
 
+;------ ToggleInverse ----------------------------------------------------------
+ToggleInverse:
+; Toggles the inverse text flag.
+; Inputs:
+;  - None
+; Outputs:
+;  - Documented effect(s)
+; Destroys:
+;  - AF
+	ld	a, (flags + mTextFlags)
+	xor	mTextInverseMask
+	ld	(flags + mTextFlags), a
+	ret
+
+
 ;------ PutSpace ---------------------------------------------------------------
 PutSpace:
 ; Draws a single blank cell to the screen.
@@ -735,13 +774,22 @@ PutCRaw:
 ;	sub	minChar	; Not all 256 code points have bitmaps
 ;	jr	nc, +_
 ;	xor	a
-;_:	; Multiply by 16
-	ld	h, 0
+;_:	; Multiply to get offset
 	ld	l, a
+	ld	h, 0
+.ifndef	SMALL_FONT
 	add	hl, hl
 	add	hl, hl
 	add	hl, hl
 	add	hl, hl
+.else
+	ld	e, l
+	ld	d, h
+	add	hl, hl
+	add	hl, de
+	add	hl, hl
+	add	hl, de
+.endif
 	ld	de, fontData
 	add	hl, de
 ; Inital output: Write ASCII code
@@ -790,7 +838,11 @@ PutCRaw:
 ; E = text bitmap
 ; HL = ptr
 ;	ld	c, charLength-2
-	ld	b, charLength-2
+.if	(charWidth * charHeight) % 8 > 0
+	ld	b, charLength - 2
+.else
+	ld	b, charLength - 1
+.endif
 PutMapOutLoop:
 	ld	a, (hl)
 	inc	hl
@@ -820,9 +872,7 @@ PutMapOutLoop:
 ;	jr	nz, PutMapOutLoop
 	djnz	PutMapOutLoop
 ; Remainder
-#if charWidth * charHeight != 126
-	.error	"Fix the remainder portion of PutCRaw."
-#endif
+.if	(charWidth * charHeight) % 8 > 0
 	ld	a, (hl)
 ;	ld	b, 6
 	xor	d	; inverse text support
@@ -835,12 +885,29 @@ PutMapOutLoop:
 ;	djnz	-_
 	screenDi
 	PutCMainOutput()
+.if	(charWidth * charHeight) % 8 > 1
 	PutCMainOutput()
+.endif
+.if	(charWidth * charHeight) % 8 > 2
 	PutCMainOutput()
+.endif
+.if	(charWidth * charHeight) % 8 > 3
 	PutCMainOutput()
+.endif
+.if	(charWidth * charHeight) % 8 > 4
 	PutCMainOutput()
+.endif
+.if	(charWidth * charHeight) % 8 > 5
 	PutCMainOutput()
+.endif
+.if	(charWidth * charHeight) % 8 > 6
+	PutCMainOutput()
+.endif
+.if	(charWidth * charHeight) % 8 > 7
+	PutCMainOutput()
+.endif
 	screenEi
+.endif
 	call	AdvanceCursor
 	pop	hl
 	pop	de
@@ -954,6 +1021,7 @@ SetCharRow:
 	ld	c, pLcdCmd
 	; Set row
 	ld	a, (currentRow)
+.ifndef	SMALL_FONT
 	; Multiply by 14
 	add	a, a
 	ld	e, a
@@ -961,6 +1029,14 @@ SetCharRow:
 	add	a, a
 	add	a, a
 	sub	e
+.else
+	; Multiply by 9
+	ld	e, a
+	add	a, a
+	add	a, a
+	add	a, a
+	add	a, e
+.endif
 	screenDi
 	; And write it
 	out	(c), b
@@ -1004,6 +1080,7 @@ SetCharCol:
 ;  - HL
 	; Set column
 	ld	a, (currentCol)
+.ifndef	SMALL_FONT
 	; Multiply by 9
 	ld	h, a
 	add	a, a
@@ -1016,6 +1093,19 @@ SetCharCol:
 	sbc	a, a
 	inc	a
 	ld	h, a
+.else
+	; Multiply by 6
+	ld	h, a
+	add	a, a
+	add	a, h
+	add	a, a
+	ld	l, a
+	ld	a, h
+	cp	43
+	sbc	a, a
+	inc	a
+	ld	h, a
+.endif
 	ld	a, lrCol
 	screenDi
 	out	(pLcdCmd), a

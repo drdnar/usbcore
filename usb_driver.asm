@@ -276,7 +276,7 @@ _QueueUsbEventNull:
 
 ;------ ProcessUsbEvents -------------------------------------------------------
 _ProcessUsbEvents:
-	LogUsbIntEventNull(lidUsbIntProcessEvents)
+	LogUsbQueueEvent(lidUsbQueueProcessEvents, logNoReg)
 	ld	hl, usbIntRecurseFlag
 	dec	(hl)
 	jr	z, {@}
@@ -285,7 +285,7 @@ _ProcessUsbEvents:
 @:	di
 	call	_DequeueUsbWord
 	jr	z, {@}
-	LogUsbIntEventDE(lidUsbIntProcessEvent)
+	LogUsbQueueEvent(lidUsbQueueProcessEvent, logRegDE)
 	ei
 	ex	de, hl
 	call	CallHL
@@ -297,7 +297,7 @@ _ProcessUsbEvents:
 	cp	1
 	call	nz, Panic
 .endif
-	LogUsbIntEventNull(lidUsbIntProcessEventsDone)
+	LogUsbQueueEvent(lidUsbQueueProcessEventsDone, logNoReg)
 	pop	ix
 	pop	de
 	pop	bc
@@ -309,9 +309,9 @@ _ProcessUsbEvents:
 
 _processUsbEventGlobalEvent:
 	call	_DequeueUsbWord
-	UnitTestPrint("[Global event: ")
-	UnitTestPrintDE()
-	UnitTestPrintChar(']')
+;	UnitTestPrint("[Global event: ")
+;	UnitTestPrintDE()
+;	UnitTestPrintChar(']')
 	ld	a, d
 	ld	ix, usbGlobalEventCb
 	call	InvokeCallBack
@@ -319,14 +319,14 @@ _processUsbEventGlobalEvent:
 
 
 _processUsbEventBConnect:
-	UnitTestPrint("[B connect]")
+;	UnitTestPrint("[B connect]")
 	call	InitializePeripheralMode
 	call	c, Panic
 	ret
 
 
 _processUsbEventUsbProtocol:
-	UnitTestPrint("[Prot: ")
+;	UnitTestPrint("[Prot: ")
 	call	_DequeueUsbByteA
 	UnitTestPrintA()
 	UnitTestPrintChar(']')
@@ -351,7 +351,7 @@ _processUsbEventUsbProtocol:
 	ret
 
 _pueSuspend:
-	UnitTestPrint("[Prot susp]")
+;	UnitTestPrint("[Prot susp]")
 	push	af
 	ld	de, usbEvSuspend * 256
 	ld	a, d
@@ -361,7 +361,7 @@ _pueSuspend:
 	ret
 
 _pueResume:
-	UnitTestPrint("[Prot resm]")
+;	UnitTestPrint("[Prot resm]")
 	push	af
 	ld	de, usbEvResume * 256
 	ld	a, d
@@ -371,7 +371,7 @@ _pueResume:
 	ret
 
 _pueReset:
-	UnitTestPrint("[Prot reset]")
+;	UnitTestPrint("[Prot reset]")
 	; Reset pipes
 	call	ResetPipes
 	; Enable control pipe
@@ -383,12 +383,12 @@ _pueReset:
 
 _pueSof:
 	; TODO: Probably make a callback hook and fire it.
-	UnitTestPrint("[Prot sof]")
+;	UnitTestPrint("[Prot sof]")
 	ret
 
 
 _processUsbEventTxComplete:
-	UnitTestPrint("[TX comp: ")
+;	UnitTestPrint("[TX comp: ")
 	in	a, (pUsbIndex)
 	push	af
 	call	_DequeueUsbByteA
@@ -409,7 +409,7 @@ _processUsbEventTxComplete:
 	jr	{-1@}
 @:	pop	af
 	out	(pUsbIndex), a
-	UnitTestPrint("[TX comp done]")
+;	UnitTestPrint("[TX done]")
 	ret
 _pueTxCompleteProcess:
 	push	af
@@ -445,11 +445,11 @@ _pueTxCompleteCheckForceCb:
 	jr	_pueTxCompleteEnd
 _pueTxCompleteDoCbEndXmit:
 	; Reset Xmit flag
-	UnitTestPrint("[TX comp end XMIT]")
+;	UnitTestPrint("[TX end XMIT]")
 	res	usbPipeFlagActiveXmitB, (hl)
 _pueTxCompleteDoCb:
 	; Do call back
-	UnitTestPrint("[TX CB go]")
+;	UnitTestPrint("[TX CB go]")
 	push	hl
 	pop	ix
 	inc	ix
@@ -458,12 +458,12 @@ _pueTxCompleteDoCb:
 	or	c
 	call	InvokeCallBack
 _pueTxCompleteEnd:
-	UnitTestPrint("[TX comp end]")
+;	UnitTestPrint("[TX end]")
 	pop	hl
 	pop	af
 	ret
 _pueTxCompleteContinueTx:
-	UnitTestPrint("[TX cont TX]")
+;	UnitTestPrint("[TX cont TX]")
 	push	af
 	push	hl
 	call	_pueTxCompleteCheckForceCb
@@ -476,7 +476,7 @@ _pueTxCompleteContinueTx:
 
 
 _processUsbEventRxComplete:
-	UnitTestPrint("[RX comp: ")
+;	UnitTestPrint("[RX comp: ")
 	in	a, (pUsbIndex)
 	push	af
 	call	_DequeueUsbByteA
@@ -494,7 +494,7 @@ _processUsbEventRxComplete:
 	jr	{-1@}
 @:	pop	af
 	out	(pUsbIndex), a
-	UnitTestPrint("[RX comp done]")
+;	UnitTestPrint("[RX comp done]")
 	ret
 _pueRxCompleteProcess:
 	push	af
@@ -558,7 +558,7 @@ HandleUsbInterrupt:
 ; Handles USB activity
 ; A = pUsbCoreIntrStatus
 ;	in	a, (pUsbCoreIntrStatus)
-	LogUsbIntEvent8(lidUsbIntDo, a)
+	LogUsbIntEvent(lidUsbIntDo, logRegA)
 	rla	; This ordering puts the USB core interrupt first
 	rla
 	rla
@@ -593,19 +593,19 @@ _ExitUsbInterrupt:
 
 _handleVscreenIntr:
 	; Never use this.
-	LogUsbIntEventNull(lidUsbIntVScreen)
+	LogUsbIntEvent(lidUsbIntVScreen, logNoReg)
 	jp	Panic
 
 _handleVbusTimeoutIntr:
 	; Toshiba PHY discharge timeout occurred
 	; This is basically an OTG SRP timeout
 	; TODO: Make dealing with this configurable? Or something?
-	LogUsbIntEventNull(lidUsbIntVBusTimeout)
+	LogUsbIntEvent(lidUsbIntVBusTimeout, logNoReg)
 	jp	Panic
 
 _handleLineIntr:
 	in	a, (pUsbIntrStatus)
-	LogUsbIntEvent8(lidUsbIntLine, a)
+	LogUsbIntEvent(lidUsbIntLine, logNoReg)
 	rrca
 	call	c, Panic
 	rrca
@@ -623,7 +623,7 @@ _handleLineIntr:
 	rrca
 	call	nc, Panic
 	; B cable disconnect
-	LogUsbIntEvent8(lidUsbIntLineBDisconnect, c)
+	LogUsbIntEvent(lidUsbIntLineBDisconnect, logRegC)
 	ld	a, vbusFall
 	call	_clearUsbLineEvent
 	; TODO: Should this actually disable USB? Or just wait until reconnect?
@@ -639,20 +639,20 @@ _handleLineIntr:
 	ld	hl, usbEvDeviceStop * 256
 	jp	_QueueUsbEventWord
 _bCableConnect:
-	LogUsbIntEvent8(lidUsbIntLineBConnect, c)
+	LogUsbIntEvent(lidUsbIntLineBConnect, logRegC)
 	ld	a, vbusRise
 	call	_clearUsbLineEvent
 	ld	de, _processUsbEventBConnect
 	jp	_QueueUsbEventNull
 _aCableConnect:
-	LogUsbIntEvent8(lidUsbIntLineAConnect, c)
+	LogUsbIntEvent(lidUsbIntLineAConnect, logRegC)
 	ld	a, cidFall
 	call	_clearUsbLineEvent
 	ld	hl, (usbEvErrMasterErr * 256) | usbErrACable
 	ld	de, _processUsbEventGlobalEvent
 	jp	_QueueUsbEventWord
 _aCableDisconnect:
-	LogUsbIntEvent8(lidUsbIntLineADisconnect, c)
+	LogUsbIntEvent(lidUsbIntLineADisconnect, logRegC)
 	ld	a, cidRise
 	call	_clearUsbLineEvent
 	jp	_ExitUsbInterrupt
@@ -674,14 +674,14 @@ _handleUsbProtocolIntr:
 	in	a, (pUsbIntrId)
 	or	a
 	jr	z, {@}
-	LogUsbIntEvent8(lidUsbIntProt, a)
+	LogUsbIntEvent(lidUsbIntProt, logRegA)
 	ld	de, _processUsbEventUsbProtocol
 	jp	_QueueUsbEventByte
 @:	; Check for TX complete
 	in	a, (pUsbIntrTx)
 	or	a
 	jr	z, _usbProtIntCheckRx
-	LogUsbIntEvent8(lidUsbIntTxComplete, a)
+	LogUsbIntEvent(lidUsbIntTxComplete, logRegA)
 	; Handle set-address as a special case.
 	ld	de, _processUsbEventTxComplete
 	bit	0, a
@@ -703,7 +703,7 @@ _usbProtIntCheckRx:
 	in	a, (pUsbIntrRx)
 	or	a
 	jr	z, {@}
-	LogUsbIntEvent8(lidUsbIntRxComplete, a)
+	LogUsbIntEvent(lidUsbIntRxComplete, logRegA)
 	ld	de, _processUsbEventRxComplete
 	jp	_QueueUsbEventByte
 	; It shouldn't be possible to get here.
@@ -2005,19 +2005,19 @@ SetupDriver:
 	call	FlushUsbInterrupts
 	; Global stuff
 	ld	de, usbDescriptorsPtr
-	ld	bc, 4 * 2 + 1 + 1
+	ld	bc, (2 * 2) + (1 + 2) + (1 + 2)
 	ldir
 	; TX pipes
 	ld	a, (usbTxPipeCount)
 	ld	de, (usbTxPipe0VarsPtr)
-@:	ld	bc, 16
+@:	ld	bc, usbPipeVarsSize
 	ldir
 	dec	a
 	jr	nz, {-1@}
 	; RX pipes
 	ld	a, (usbRxPipeCount)
 	ld	de, (usbRxPipe0VarsPtr)
-@:	ld	bc, 16
+@:	ld	bc, usbPipeVarsSize
 	ldir
 	dec	a
 	jr	nz, {-1@}
