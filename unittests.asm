@@ -144,7 +144,14 @@ _writeStr:
 	.db	"Write ptr: ", 0
 _readStr:
 	.db	"Read ptr: ", 0
-
+_flagsConfStr:
+	.db	"Flags/Conf: ", 0
+_dataProcCbStr:
+	.db	"Proc Cb: ", 0
+_dataSizeStr:
+	.db	"Data size: ", 0
+_bufferPtrStr:
+	.db	"Buffer root: ", 0
 
 
 .ifndef	SMALL_FONT
@@ -164,11 +171,21 @@ _queueVars:
 	.dw	usbEvQReadPtr
 
 _txBufferVars:	;usbPipeBufferPtr
-	.db	2
-	.dw	_writeStr
-	.dw	hidTxPipe0Vars + usbPipeBufferWritePtr
+	.db	6
+	.dw	_flagsConfStr
+	.dw	hidTxPipe0Vars + usbPipeFlags
+	.dw	_dataProcCbStr
+	.dw	hidTxPipe0Vars + usbPipeDataProcCb
+	.dw	_bufferPtrStr
+	.dw	hidTxPipe0Vars + usbPipeBufferPtr
+	.dw	_dataSizeStr
+	.dw	hidTxPipe0Vars + usbPipeBufferDataSize
 	.dw	_readStr
 	.dw	hidTxPipe0Vars + usbPipeBufferReadPtr
+	.dw	_writeStr
+	.dw	hidTxPipe0Vars + usbPipeBufferWritePtr
+
+
 
 _rxBufferVars:	;usbPipeBufferPtr
 	.db	2
