@@ -195,6 +195,14 @@ CompStr:
 
 .binarymode ti8x
 
+; Best approximation of P1 phosphor color I could come up with
+P1_TRUE		.equ	86h
+; Brighter version to compensate for small pixel size
+P1_BRIGHT	.equ	87h
+
+TEXT_COLOR_VALUE	.equ	P1_BRIGHT	;0A6h
+
+
 ;.define	screenDi	di
 ;.define	screenEi	ei
 .define	screenDi	nop \ nop
@@ -209,7 +217,8 @@ CompStr:
 	.define	LOG_USB_QUEUE
 .endif
 
-
+; Undefine this for slightly faster text routines
+.define	USE_CHEAP_COLOR_TEXT
 
 .define	UNIT_TESTS
 

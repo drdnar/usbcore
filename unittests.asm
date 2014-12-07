@@ -60,12 +60,19 @@ _txBufferMenu:
 	.db	"1. Flush buffer", chNewLine
 	.db	"2. Add byte", chNewLine
 	.db	"3. Remove byte", chNewLine
-	.db	"4. TX packet", chNewLine
+	.db	"4. Set data size", chNewLine
+	.db	"5. TX packet", chNewLine
 	.db	0
 	.db	sk1
 	.dw	_flushTxBuffer
+	.db	sk2
+	.dw	_txAddByte
+	.db	sk3
+	.dw	_txRemoveByte
+	.db	sk4
+	.dw	_txSetDataSize
 	.db	skClear
-	.dw	unitTestsMenuShow
+	.dw	_bufferTests - 1
 	.db	0
 
 _rxBufferMenu:
@@ -73,12 +80,19 @@ _rxBufferMenu:
 	.db	"1. Flush buffer", chNewLine
 	.db	"2. Add byte", chNewLine
 	.db	"3. Remove byte", chNewLine
-	.db	"4. RX packet", chNewLine
+	.db	"4. Set data size", chNewLine
+	.db	"5. RX packet", chNewLine
 	.db	0
 	.db	sk1
 	.dw	_flushRxBuffer
+	.db	sk2
+	.dw	_rxAddByte
+	.db	sk3
+	.dw	_rxRemoveByte
+	.db	sk4
+	.dw	_rxSetDataSize
 	.db	skClear
-	.dw	unitTestsMenuShow
+	.dw	_bufferTests - 1
 	.db	0
 
 _flushTxBuffer:
@@ -91,13 +105,106 @@ _flushRxBuffer:
 	call	FlushRxBuffer
 	jp	_rxBufferMenuShow
 	
+_txAddByte:
+	call	ClearWind
+	ld	hl, _writeCountStr
+	call	PutS
+	xor	a
+	call	GetTxPipePtr
+	push	hl
+	pop	ix
+	call	GetBufferWriteByteCount
+	call	DispHL
+	call	NewLine
+	ld	hl, _addByteStr
+	call	PutS
+	call	GetHexByte
+	ld	b, a
+	xor	a
+	call	WriteTxBufferByte
+	jp	_txBufferMenuShow
 
+_rxAddByte:
+	call	ClearWind
+	ld	hl, _writeCountStr
+	call	PutS
+	xor	a
+	call	GetRxPipePtr
+	push	hl
+	pop	ix
+	call	GetBufferWriteByteCount
+	call	DispHL
+	call	NewLine
+	ld	hl, _addByteStr
+	call	PutS
+	call	GetHexByte
+	call	WriteBufferByte
+	jp	_rxBufferMenuShow
 
+_txRemoveByte:
+	call	ClearWind
+	ld	hl, _readCountStr
+	call	PutS
+	xor	a
+	call	GetTxPipePtr
+	push	hl
+	pop	ix
+	call	GetBufferReadByteCount
+	call	DispHL
+	call	NewLine
+	ld	hl, _valueStr
+	call	PutS
+	call	ReadBufferByte
+	call	DispByte
+	call	GetKey
+	jp	_txBufferMenuShow
 
+_rxRemoveByte:
+	call	ClearWind
+	ld	hl, _readCountStr
+	call	PutS
+	xor	a
+	call	GetRxPipePtr
+	push	hl
+	pop	ix
+	call	GetBufferReadByteCount
+	call	DispHL
+	call	NewLine
+	ld	hl, _valueStr
+	call	PutS
+	xor	a
+	call	ReadRxBufferByte
+	call	DispByte
+	call	GetKey
+	jp	_rxBufferMenuShow
 
-
-
-
+_txSetDataSize:
+	call	ClearWind
+	ld	hl, _dataSizeStr
+	call	PutS
+	xor	a
+	call	GetTxPipePtr
+	push	hl
+	pop	ix
+	call	GetHexByte
+	ld	(ix + usbPipeBufferDataSize + 1), a
+	call	GetHexByte
+	ld	(ix + usbPipeBufferDataSize), a
+	jp	_txBufferMenuShow
+	
+_rxSetDataSize:
+	call	ClearWind
+	ld	hl, _dataSizeStr
+	call	PutS
+	xor	a
+	call	GetRxPipePtr
+	push	hl
+	pop	ix
+	call	GetHexByte
+	ld	(ix + usbPipeBufferDataSize + 1), a
+	call	GetHexByte
+	ld	(ix + usbPipeBufferDataSize), a
+	jp	_rxBufferMenuShow
 
 
 
@@ -152,6 +259,14 @@ _dataSizeStr:
 	.db	"Data size: ", 0
 _bufferPtrStr:
 	.db	"Buffer root: ", 0
+_writeCountStr:
+	.db	"Write count: ", 0
+_addByteStr:
+	.db	"Add byte: ", 0
+_readCountStr:
+	.db	"Read count: ", 0
+_valueStr:
+	.db	"Value: ", 0
 
 
 .ifndef	SMALL_FONT
@@ -185,14 +300,22 @@ _txBufferVars:	;usbPipeBufferPtr
 	.dw	_writeStr
 	.dw	hidTxPipe0Vars + usbPipeBufferWritePtr
 
-
-
 _rxBufferVars:	;usbPipeBufferPtr
-	.db	2
-	.dw	_writeStr
-	.dw	hidRxPipe0Vars + usbPipeBufferWritePtr
+	.db	6
+	.dw	_flagsConfStr
+	.dw	hidRxPipe0Vars + usbPipeFlags
+	.dw	_dataProcCbStr
+	.dw	hidRxPipe0Vars + usbPipeDataProcCb
+	.dw	_bufferPtrStr
+	.dw	hidRxPipe0Vars + usbPipeBufferPtr
+	.dw	_dataSizeStr
+	.dw	hidRxPipe0Vars + usbPipeBufferDataSize
 	.dw	_readStr
 	.dw	hidRxPipe0Vars + usbPipeBufferReadPtr
+	.dw	_writeStr
+	.dw	hidRxPipe0Vars + usbPipeBufferWritePtr
+
+
 
 _queueTestsMenu:
 	ld	ix, usbEvQueue

@@ -1037,14 +1037,14 @@ FlushBuffer:
 ; Destroys:
 ;  - AF
 	ld	a, (ix + usbPipeBufferPtr)
-	ld	(usbPipeBufferReadPtr), a
-	ld	(usbPipeBufferWritePtr), a
+	ld	(ix + usbPipeBufferReadPtr), a
+	ld	(ix + usbPipeBufferWritePtr), a
 	ld	a, (ix + usbPipeBufferPtr + 1)
-	ld	(usbPipeBufferReadPtr + 1), a
-	ld	(usbPipeBufferWritePtr + 1), a
+	ld	(ix + usbPipeBufferReadPtr + 1), a
+	ld	(ix + usbPipeBufferWritePtr + 1), a
 	ld	a, (ix + usbPipeBufferPtr + 2)
-	ld	(usbPipeBufferReadPtr + 2), a
-	ld	(usbPipeBufferWritePtr + 2), a
+	ld	(ix + usbPipeBufferReadPtr + 2), a
+	ld	(ix + usbPipeBufferWritePtr + 2), a
 	ld	a, (ix + usbPipeFlags)
 	and	~(usbPipeFlagBufferFull | usbPipeFlagActiveXmit)
 	or	usbPipeFlagBufferEmpty
@@ -1072,7 +1072,7 @@ WriteTxBufferByte:
 	push	de
 	push	hl
 	push	ix
-	call	GetRxPipePtr
+	call	GetTxPipePtr
 	push	hl
 	pop	ix
 	ld	a, b
@@ -1153,14 +1153,13 @@ GetBufferWriteByteCount:
 ReadRxBufferByte:
 ; Reads a byte from an RX pipe's buffer.  WARNING: This does not check to make
 ; sure the buffer is not empty, so calling this will cause the buffer to enter
-; and inconsistent state.
+; an inconsistent state.
 ; Input:
 ;  - A: Pipe number
 ; Output:
 ;  - A: Byte
 ;  - Read ptr incremented
 ;  - usbPipeFlagBufferEmpty set if empty
-;  - usbPipeFlagBufferFull reset IFF circular buffer
 ;  - Z set if you have read the last byte
 ; Destroys:
 ;  - Flags
@@ -1188,7 +1187,6 @@ ReadBufferByte:
 ;  - A: Byte read
 ;  - Read ptr incremented
 ;  - usbPipeFlagBufferEmpty set if empty
-;  - usbPipeFlagBufferFull reset IFF circular buffer
 ;  - Z if you have read the last byte actually in the buffer
 ; Destroys:
 ;  - Flags
@@ -1999,10 +1997,12 @@ SetupDriver:
 ;  - HL
 ;  - IX
 	; Prevent USB confusion
+	push	hl
 	call	DisableUSB
 	xor	a
 	ld	(usbFlags), a
 	call	FlushUsbInterrupts
+	pop	hl
 	; Global stuff
 	ld	de, usbDescriptorsPtr
 	ld	bc, (2 * 2) + (1 + 2) + (1 + 2)

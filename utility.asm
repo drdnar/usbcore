@@ -229,8 +229,9 @@ ShowHexDump:
 	call	ToggleInverse
 	ld	hl, _dumpHeader
 	call	PutS
-	ld	e, ixl
-	dec	e
+;	ld	e, ixl
+;	dec	e
+	ld	e, 255
 .ifndef	SMALL_FONT
 	ld	b, 8
 .else
@@ -240,7 +241,7 @@ ShowHexDump:
 	call	PutC
 	ld	a, e
 	inc	a
-	and	15
+;	and	15
 	ld	e, a
 	call	DispByte
 	djnz	{-1@}
@@ -316,6 +317,11 @@ _showDataNoHighlight:
 	inc	iy
 	ld	h, (iy)
 	inc	iy
+;	push	hl
+;	call	DispHL
+;	ld	a, ':'
+;	call	PutC
+;	pop	hl
 	ld	a, (hl)
 	inc	hl
 	ld	h, (hl)

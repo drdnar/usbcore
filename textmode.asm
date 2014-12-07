@@ -109,9 +109,6 @@
 
 .module Text
 
-COLOR_VALUE	.equ	0A4h
-.define	USE_CHEAP_COLOR_TEXT
-
 ;------ SetFullScrnWind --------------------------------------------------------
 SetFullScrnWind:
 ; Resets the window to one in which everything is full-screen
@@ -678,7 +675,7 @@ PutSpace:
 	screenDi
 @:	
 .ifdef	USE_CHEAP_COLOR_TEXT
-	and	COLOR_VALUE
+	and	TEXT_COLOR_VALUE
 .endif
 @:	out	(pLcdData), a
 	out	(pLcdData), a
@@ -821,7 +818,7 @@ PutCRaw:
 	rrc	e
 	sbc	a, a
 .ifdef	USE_CHEAP_COLOR_TEXT
-	and	COLOR_VALUE
+	and	TEXT_COLOR_VALUE
 .endif
 	out	(pLcdData), a
 	rrc	c
@@ -864,7 +861,7 @@ PutMapOutLoop:
 	rrc	e
 	sbc	a, a
 .ifdef	USE_CHEAP_COLOR_TEXT
-	and	COLOR_VALUE
+	and	TEXT_COLOR_VALUE
 .endif
 	out	(pLcdData), a
 	out	(pLcdData), a
