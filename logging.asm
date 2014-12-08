@@ -104,6 +104,29 @@ log_table_start:
 	LogTableUsbQueueEntry(lidUsbQueueProcessEvents, 0, "INT QUEUE start")
 	LogTableUsbQueueEntry(lidUsbQueueProcessEvent, 2, "INT DEQUEUE call back: ")
 	LogTableUsbQueueEntry(lidUsbQueueProcessEventsDone, 0, "INT DEQUEUE stop")
+	LogTableUsbQueueEntry(lidUsbQueueFlushInts, 0, "INT QUEUE Flush queue")
+	LogTableUsbLowEntry(lidUsbLowReset, 0, "LOW Reset")
+	LogTableUsbLowEntry(lidUsbLowEnableUsb, 0, "LOW Enable USB")
+	LogTableUsbLowEntry(lidUsbLowResetPipes, 0, "LOW Reset pipes")
+	LogTableUsbLowEntry(lidUsbLowInitializePeripheral, 0, "LOW Init periph")
+	LogTableUsbLowEntry(lidUsbLowFlushTxFifo, 1, "LOW Flush TX FIFO #")
+	LogTableUsbLowEntry(lidUsbLowFlushRxFifo, 1, "LOW Flush RX FIFO #")
+	LogTableUsbLowEntry(lidUsbLowWritePacket, 1, "Low Write packet #")
+	LogTableUsbLowEntry(lidUsbLowSendPacket, 1, "LOW Send packet #")
+	LogTableUsbLowEntry(lidUsbLowWriteControlPacket, 0, "LOW Write ctrl packet")
+	LogTableUsbLowEntry(lidUsbLowSendControlPacket, 0, "LOW Send ctrl packet")
+	LogTableUsbLowEntry(lidUsbLowFinishControlReq, 0, "LOW Finish ctrl req")
+	LogTableUsbLowEntry(lidUsbLowSendStall, 1, "LOW Send non-ctrl STALL")
+	LogTableUsbLowEntry(lidUsbLowSendControlStall, 0, "LOW Send ctrl STALL")
+	LogTableUsbLowEntry(lidUsbLowReadPacket, 1, "LOW Read packet #")
+	LogTableUsbLowEntry(lidUsbLowReadyControlForRx, 0, "LOW Ready ctrl for RX")
+	LogTableUsbLowEntry(lidUsbLowGetRxPacketSize, 1, "LOW Get RX size #")
+	LogTableUsbLowEntry(lidUsbLowGetRxPacketSizeResult, 1, "LOW RX size = ")
+	LogTableUsbProtEntry(lidUsbProtProcessPacketDE, 2, "PROT Proc packet DE = ")
+	LogTableUsbProtEntry(lidUsbProtProcessPacketHL, 2, "PROT Proc packet HL = ")
+	
+	
+	
 	
 .ifdef	NEVER
 	LogTableUsbIntEntry(lidUsbIntDo, 1, "INT ")

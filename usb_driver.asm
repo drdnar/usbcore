@@ -1283,8 +1283,12 @@ GetRxPacketSize:
 ;  - A: Packet size
 ; Destroys:
 ;  - pUsbIndex
+	LogUsbLowEvent(lidUsbLowGetRxPacketSize, logRegA)
 	out	(pUsbIndex), a
+.ifndef	UNIT_TESTS
 	in	a, (pUsbRxCount)
+.endif
+	LogUsbLowEvent(lidUsbLowGetRxPacketSizeResult, logRegA)
 	ret
 
 
@@ -1298,10 +1302,13 @@ ReadyControlPipeForRx:
 ; Destroys:
 ;  - AF
 ;  - pUsbIndex
+	LogUsbLowEvent(lidUsbLowReadyControlForRx, logNoReg)
 	xor	a
 	out	(pUsbIndex), a
+.ifndef	UNIT_TESTS
 	ld	a, csr0SvdRxPktRdy
 	out	(pUsbCsr0), a
+.endif
 	ret
 
 
@@ -1321,14 +1328,17 @@ ReadPacket:
 ;  - BC
 ;  - HL
 ;  - pUsbIndex
+	LogUsbLowEvent(lidUsbLowReadPacket, logRegA)
 	out	(pUsbIndex), a
 	add	a, pUsbPipe
 	ld	c, a
+.ifndef	UNIT_TESTS
 	in	a, (pUsbRxCount)
 	or	a
 	ret	z
 	ld	b, a
 	inir
+.endif
 	scf
 	ret
 
@@ -1343,10 +1353,13 @@ SendControlStall:
 ; Destroys:
 ;  - AF
 ;  - pUsbIndex
+	LogUsbLowEvent(lidUsbLowSendControlStall, logNoReg)
 	xor	a
 	out	(pUsbIndex), a
+.ifndef	UNIT_TESTS
 	ld	a, csr0SendStall | csr0SvdRxPktRdy
 	out	(pUsbCsr0), a
+.endif
 	ret
 
 
@@ -1360,9 +1373,12 @@ SendStall:
 ; Destroys:
 ;  - AF
 ;  - pUsbIndex
+	LogUsbLowEvent(lidUsbLowSendStall, logRegA)
+.ifndef	UNIT_TESTS
 	out	(pUsbIndex), a
 	ld	a, txCsrSendStall | txCsrClrDataOtg
 	out	(pUsbTxCsrCont), a
+.endif
 	ret
 
 
@@ -1377,12 +1393,15 @@ FinishControlRequest:
 ; Destroys:
 ;  - AF
 ;  - pUsbIndex
+	LogUsbLowEvent(lidUsbLowFinishControlReq, logNoReg)
 	xor	a
 	out	(pUsbIndex), a
+.ifndef	UNIT_TESTS
 	in	a, (pUsbCsr0)	; Required according to BrandonW
 	ld	a, csr0DataEnd | csr0SvdRxPktRdy	; 48h
 	out	(pUsbCsr0), a
 	in	a, (pUsbCsr0)
+.endif
 	ret
 
 
@@ -1402,6 +1421,7 @@ SendControlPacket:
 ;  - DE
 ;  - HL
 ;  - pUsbIndex
+	LogUsbLowEvent(lidUsbLowSendControlPacket, logNoReg)
 	xor	a
 	ex	de, hl
 	call	GetRxPipePtr
@@ -1424,8 +1444,10 @@ WriteControlPacket:
 ;  - BC
 ;  - HL
 ;  - pUsbIndex
+	LogUsbLowEvent(lidUsbLowWriteControlPacket, logNoReg)
 	xor	a
 	out	(pUsbIndex), a
+.ifndef	UNIT_TESTS
 	in	a, (pUsbCsr0)
 	and	csr0TxPktRdy
 	ret	nz
@@ -1438,9 +1460,9 @@ WriteControlPacket:
 	pop	bc
 @:	ld	a, c
 	out	(pUsbCsr0), a
+.endif
 	scf
 	ret
-
 
 
 ;------ SendPacket -------------------------------------------------------------
@@ -1460,6 +1482,7 @@ SendPacket:
 ;  - DE
 ;  - HL
 ;  - pUsbIndex
+	LogUsbLowEvent(lidUsbLowSendPacket, logRegA)
 	ld	c, a
 	ex	de, hl
 	call	GetTxPipePtr
@@ -1483,7 +1506,9 @@ WritePacket:
 ;  - BC
 ;  - HL
 ;  - pUsbIndex
+	LogUsbLowEvent(lidUsbLowWritePacket, logRegA)
 	out	(pUsbIndex), a
+.ifndef	UNIT_TESTS
 	or	pUsbPipe	; = A0 = 1010 0000
 	ld	c, a
 	in	a, (pUsbTxCsr)
@@ -1495,6 +1520,7 @@ WritePacket:
 	otir
 @:	ld	a, txCsrTxPktRdy
 	out	(pUsbTxCsr), a
+.endif
 	scf
 	ret
 
@@ -1509,14 +1535,16 @@ FlushRxFifo:
 ; Destroys:
 ;  - AF
 ;  - pUsbIndex
+	LogUsbLowEvent(lidUsbLowFlushRxFifo, logRegA)
 	out	(pUsbIndex), a
+.ifndef	UNIT_TESTS
+	; TODO: So . . . is flushing the control out FIFO the same as flushing the in FIFO?
 	or	a
-	jr	z, {@}
+	jr	z, FlushTxFifo
 	ld	a, rxCsrFlushFifo; | rxCsrClrDataOtg	; I donno, just try both.
 	out	(pUsbRxCsr), a
+.endif
 	ret
-@:	
-
 
 ;------ FlushTxFifo ------------------------------------------------------------
 FlushTxFifo:
@@ -1528,7 +1556,9 @@ FlushTxFifo:
 ; Destroys:
 ;  - AF
 ;  - pUsbIndex
+	LogUsbLowEvent(lidUsbLowFlushTxFifo, logRegA)
 	out	(pUsbIndex), a
+.ifndef	UNIT_TESTS
 	or	a
 	jr	z, {@}
 	ld	a, txCsrFifoFlushFifo	; Flush pipe
@@ -1536,6 +1566,7 @@ FlushTxFifo:
 	ret
 @:	ld	a, csr0ContFlushFifo	; Flush pipe
 	out	(pUsbCsr0Cont), a
+.endif
 	ret
 
 
@@ -1567,6 +1598,8 @@ ProcessPacket:
 ;  - HL
 processPacketApplyBitmask	.equ	80h
 processPacketNoIncDe	.equ	40h
+	LogUsbProtEvent(lidUsbProtProcessPacketDE, logRegDE)
+	LogUsbProtEvent(lidUsbProtProcessPacketHL, logRegHL)
 	ld	a, (hl)
 	inc	hl
 	ld	c, a
@@ -1606,6 +1639,8 @@ processPacketNoIncDe	.equ	40h
 
 ;------ InitializePeripheralMode -----------------------------------------------
 InitializePeripheralMode:
+	LogUsbLowEvent(lidUsbLowInitializePeripheral, logNoReg)
+.ifndef	UNIT_TESTS
 	; Reset USB controller
 	xor	a
 	out	(pUsbSystem), a
@@ -1649,7 +1684,9 @@ InitializePeripheralMode:
 	; Other protocol interrupts
 	ld	a, usbIntrSuspend | usbIntrReset | usbIntrResume | usbIntrSof
 	out	(pUsbIntrMask), a
+.endif
 ResetPipes:
+	LogUsbLowEvent(lidUsbLowResetPipes, logNoReg)
 	; Enable correct number of TX pipes
 	ld	a, (usbTxPipeCount)
 	ld	b, a
@@ -1657,7 +1694,9 @@ ResetPipes:
 @:	rla
 	djnz	{-1@}
 	dec	a
+.ifndef	UNIT_TESTS
 	out	(pUsbIntrTxMask), a
+.endif
 	; Enable correct number of RX pipes
 	ld	a, (usbRxPipeCount)
 	ld	b, a
@@ -1666,17 +1705,25 @@ ResetPipes:
 	djnz	{-1@}
 	dec	a
 	dec	a		; Disable RX on control pipe
+.ifndef	UNIT_TESTS
 	out	(pUsbIntrRxMask), a
+.endif
 	xor	a
+.ifndef	UNIT_TESTS
 	out	(pUsbIntrTxMaskCont), a
 	out	(pUsbIntrRxMaskCont), a
+.endif
 	; Pipes
 	xor	a
 	out	(pUsbIndex), a
 	ld	a, csr0SvdRxPktRdy	; Probably flushes RX FIFO
+.ifndef	UNIT_TESTS
 	out	(pUsbCsr0), a
+.endif
 	ld	a, csr0ContFlushFifo	; Probably flushes TX FIFO
+.ifndef	UNIT_TESTS
 	out	(pUsbCsr0Cont), a
+.endif
 	; Reset each TX pipe
 	ld	hl, (usbTxPipe0VarsPtr)
 	inc	hl
@@ -1690,9 +1737,13 @@ ResetPipes:
 	cp	b
 	jr	z, {@}
 	ld	a, txCsrFifoFlushFifo | txCsrClrDataOtg
+.ifndef	UNIT_TESTS
 	out	(pUsbTxCsr), a
+.endif
 	ld	a, txCsrContWrDataToggle
+.ifndef	UNIT_TESTS
 	out	(pUsbTxCsrCont), a
+.endif
 	ld	a, (hl)
 	and	0Fh
 	out	(pUsbTxMaxP), a
@@ -1713,7 +1764,9 @@ ResetPipes:
 ;	jr	z, {@}
 	ret	z
 	ld	a, rxCsrFlushFifo
+.ifndef	UNIT_TESTS
 	out	(pUsbRxCsr), a
+.endif
 ; TODO: I guess this isn't really something you set?
 ;	ld	a, (hl)
 ;	and	0Fh
@@ -1855,6 +1908,8 @@ EnableUSB:
 ;  - None
 ; Outputs:
 ;  - None
+	LogUsbLowEvent(lidUsbLowEnableUsb, logNoReg)
+.ifndef	UNIT_TESTS
 	call	FlushUsbInterrupts
 	; Hold the USB controller in reset
 	xor	a
@@ -1885,6 +1940,7 @@ EnableUSB:
 	call	WaitForControllerReset
 	ld	a, usbReset_
 	out	(pUsbSystem), a
+.endif
 	xor	a
 	ret
 .ifdef	NEVER
@@ -1924,6 +1980,7 @@ FlushUsbInterrupts:
 ; Destroys:
 ;  - HL
 ;  - A
+	LogUsbQueueEvent(lidUsbQueueFlushInts, logNoReg)
 	ld	a, 1
 	ld	(usbIntRecurseFlag), a
 	ld	hl, usbEvQueue
@@ -1969,12 +2026,15 @@ ResetController:
 ;  - None
 ; Destroys:
 ;  - AF
+	LogUsbLowEvent(lidUsbLowReset, logNoReg)
 	xor	a
 	out	(pUsbSystem), a
 WaitForControllerReset:
+.ifndef	UNIT_TESTS
 	in	a, (pUsbSystem)
 	and	usbRstO
 	jr	z, WaitForControllerReset
+.endif
 	ret
 
 

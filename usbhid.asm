@@ -319,6 +319,16 @@ thingy:
 ;	.db	"Test program is live, but there is "
 ;	.db	"nothing to do.", chNewLine
 	.db	"USB Peripheral Test Program", chNewLine
+	
+	.db	"Last GIT commit "
+.fopen gitid, ".\\.git\\refs\\heads\\master"
+.for i, 1, 7
+	.fread	gitid, gitbyte
+	.db	gitbyte
+.loop
+.fclose gitid
+	.db	chNewLine
+	
 	.db	"Build ", VERSION, chNewLine
 .ifndef	UNIT_TESTS
 	.db	"1. HID Demo", chNewLine
