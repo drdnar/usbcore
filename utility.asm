@@ -135,6 +135,10 @@ DispByte:
 	rra
 	call	_dba
 	pop	af
+	push	af
+	call	_dba
+	pop	af
+	ret
 _dba:	or	0F0h
 	daa
 	add	a, 0A0h

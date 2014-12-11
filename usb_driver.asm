@@ -783,13 +783,18 @@ _continueRxReceiveThing:
 	in	a, (pUsbIndex)
 	or	a
 	jr	nz, {@}
+.ifndef	UNIT_TESTS
 	in	a, (pUsbCsr0)
 	and	csr0RxPktRdy
 	ret	nz	; ???
+.endif
 	jr	{2@}
-@:	in	a, (pUsbRxCsr)
+@:	
+.ifndef	UNIT_TESTS
+	in	a, (pUsbRxCsr)
 	and	rxCsrRxPktRdy
 	ret	nz	; ???
+.endif
 @:	push	hl
 	pop	ix
 	call	GetBufferWriteByteCount
@@ -896,6 +901,10 @@ ContinueTx:
 ;  - IX
 	push	af
 	call	GetTxPipePtr
+	
+	ld	a, 'x'
+	call	PutC
+	
 	pop	af
 	push	hl
 	pop	ix
@@ -904,22 +913,35 @@ ContinueTx:
 _continueTxSendThing:
 	set	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
 	out	(pUsbIndex), a
+	
+	push	af
+	ld	a, 'X'
+	call	PutC
+	pop	af
+	
 	ld	b, txCsrTxPktRdy
 	or	a
 	jr	nz, {@}
 	ld	b, csr0TxPktRdy
-@:	in	a, (pUsbTxCsr)
+@:	
+.ifndef	UNIT_TESTS
+	in	a, (pUsbTxCsr)
 	and	b
 	ret	nz	; Error, return NC
+.endif
 	call	GetBufferReadByteCount
+	
+	call	DispHL
+	
 	ld	a, (ix + usbPipeConfig)
 	and	usbPipeMaxPacketMask
-	rla
-	rla
-	rla
+	add	a, a
+	add	a, a
+	add	a, a
 	ld	e, a
 	ld	d, 0
 	ex	de, hl
+	call	DispHL
 	cphlde
 	ld	d, csr0TxPktRdy
 	jr	c, {@}	; if max_packet_size >= bytesRemaining then do termVal = csr0TxPktRdy | csr0DataEnd if max_packet_size ~= bytesRemaining then do if write_ptr ~= end_of_buffer then do return endif endif endif
@@ -936,7 +958,17 @@ _continueTxSendThing:
 	or	a
 	sbc	hl, bc
 	jr	nz, _continueTxNotEnoughDataToSend	; Save a byte. . . .
-@:	ld	l, (ix + usbPipeBufferReadPtr)
+@:	
+	ld	a, 'Q'
+	call	PutC
+	ld	a, '!'
+	call	PutC
+	ld	a, e
+	call	DispByte
+	ld	a, ':'
+	call	PutC
+	
+	ld	l, (ix + usbPipeBufferReadPtr)
 	ld	h, (ix + usbPipeBufferReadPtr + 1)
 	in	a, (pUsbIndex)
 	add	a, pUsbPipe
@@ -953,9 +985,21 @@ _continueTxSendThing:
 	jr	nz, {-1@}
 .else
 	ld	b, e
+.ifndef	UNIT_TESTS
 	otir
+.else
+@:	ld	a, (hl)
+	call	DispByte
+	inc	hl
+	dec	b
+	jr	nz, {-1@}
+.endif
 .endif
 _continueTxSendEmpty:
+
+	ld	a, 'z'
+	call	PutC
+
 	in	a, (pUsbIndex)
 	or	a
 	jr	nz, {@}
@@ -964,15 +1008,27 @@ _continueTxSendEmpty:
 	jr	{2@}
 @:	ld	a, txCsrTxPktRdy
 @:	out	(pUsbTxCsr), a
+	
+	ld	a, 'Z'
+	call	PutC
+
 	ld	(ix + usbPipeBufferReadPtr), l
 	ld	(ix + usbPipeBufferReadPtr + 1), h
 	ld	e, (ix + usbPipeBufferWritePtr)
 	ld	d, (ix + usbPipeBufferWritePtr + 1)
 	cphlde
 _continueTxNotEnoughDataToSend:
+
+	ld	a, 'j'
+	call	PutC
+
 	scf	; Done, return C
 	ret	nz
 	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
+	
+	ld	a, 'J'
+	call	PutC
+	
 	ret
 
 
@@ -1730,9 +1786,10 @@ ResetPipes:
 	ld	a, (usbTxPipeCount)
 	ld	b, a
 	ld	de, usbPipeVarsSize
+	ld	c, 0
 @:	add	hl, de
-	in	a, (pUsbIndex)
-	inc	a
+	inc	c
+	ld	a, c
 	out	(pUsbIndex), a
 	cp	b
 	jr	z, {@}
@@ -1757,8 +1814,8 @@ ResetPipes:
 	ld	b, a
 	ld	de, usbPipeVarsSize
 @:	add	hl, de
-	in	a, (pUsbIndex)
-	inc	a
+	inc	c
+	ld	a, c
 	out	(pUsbIndex), a
 	cp	b
 ;	jr	z, {@}

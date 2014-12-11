@@ -62,6 +62,8 @@ _txBufferMenu:
 	.db	"3. Remove byte", chNewLine
 	.db	"4. Set data size", chNewLine
 	.db	"5. TX packet", chNewLine
+	.db	chNewLine
+	.db	"F1: Test data"
 	.db	0
 	.db	sk1
 	.dw	_flushTxBuffer
@@ -71,6 +73,10 @@ _txBufferMenu:
 	.dw	_txRemoveByte
 	.db	sk4
 	.dw	_txSetDataSize
+	.db	sk5
+	.dw	_txPacket
+	.db	skYEqu
+	.dw	_txTestData
 	.db	skClear
 	.dw	_bufferTests - 1
 	.db	0
@@ -206,7 +212,33 @@ _rxSetDataSize:
 	ld	(ix + usbPipeBufferDataSize), a
 	jp	_rxBufferMenuShow
 
+_txTestDataData:
+	.db	"ABCDEFGHijklmnop"
+	.db	"01234567!@#$%^&*"
+	.db	"abcdefghIJKLMNOP"
+	.db	"XYZABCJKLMNBOPEQ"
+	
+_txTestData:
+	ld	hl, _txTestDataData
+	ld	de, hidControlTxBuffer
+	ld	bc, 64
+	ldir
+	ld	(hidTxPipe0Vars + usbPipeBufferWritePtr), de
+	
+	xor	a
+	call	GetTxPipePtr
+	push	hl
+	pop	ix
+	set	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
+	res	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
 
+	jp	_txBufferMenuShow
+_txPacket:
+	call	ClearWind
+	xor	a
+	call	ContinueTx
+	call	GetKey
+	jp	_txBufferMenuShow
 
 
 

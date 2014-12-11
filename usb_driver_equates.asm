@@ -44,7 +44,7 @@ usbFlagControlAutoProcB	.equ	5	; Set when . . . ? What was I thinking?
 ; Pipe-specific data
 usbPipeFlags		.equ	0
 usbPipeConfig		.equ	usbPipeFlags + 1
-usbPipeMaxPacketMask	.equ	0F0h
+usbPipeMaxPacketMask	.equ	0Fh
 ; If the call back is code, it is called with DE = ptr to usbPipeFlags and
 ; A = pipe number.
 ; For RX pipes, if the call back if a processing table, you'll have to specify
