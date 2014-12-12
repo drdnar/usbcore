@@ -61,7 +61,8 @@ _txBufferMenu:
 	.db	"2. Add byte", chNewLine
 	.db	"3. Remove byte", chNewLine
 	.db	"4. Set var", chNewLine
-	.db	"5. TX packet", chNewLine
+	.db	"5. Continue TX", chNewLine
+	.db	"6. Start TX", chNewLine
 	.db	chNewLine
 	.db	"F1: Test data"
 	.db	0
@@ -75,6 +76,8 @@ _txBufferMenu:
 	.dw	_txSetVar
 	.db	sk5
 	.dw	_txPacket
+	.db	sk6
+	.dw	_txStart
 	.db	skYEqu
 	.dw	_txTestData
 	.db	skClear
@@ -86,8 +89,9 @@ _rxBufferMenu:
 	.db	"1. Flush buffer", chNewLine
 	.db	"2. Add byte", chNewLine
 	.db	"3. Remove byte", chNewLine
-	.db	"4. Set data size", chNewLine
-	.db	"5. RX packet", chNewLine
+	.db	"4. Set var", chNewLine
+	.db	"5. Continue RX", chNewLine
+	.db	"6. Start RX", chNewLine
 	.db	0
 	.db	sk1
 	.dw	_flushRxBuffer
@@ -96,7 +100,13 @@ _rxBufferMenu:
 	.db	sk3
 	.dw	_rxRemoveByte
 	.db	sk4
-	.dw	_rxSetDataSize
+	.dw	_rxSetVar
+	.db	sk5
+	.dw	_rxPacket
+	.db	sk6
+	.dw	_rxStart
+	.db	skYEqu
+	.dw	_rxTestData
 	.db	skClear
 	.dw	_bufferTests - 1
 	.db	0
@@ -202,7 +212,8 @@ _txSetVar:
 	call	_setAVar
 	jp	_txBufferMenuShow
 	
-_rxSetDataSize:
+_rxSetVar:
+.ifdef	NEVER
 	call	ClearWind
 	ld	hl, _dataSizeStr
 	call	PutS
@@ -214,35 +225,98 @@ _rxSetDataSize:
 	ld	(ix + usbPipeBufferDataSize + 1), a
 	call	GetHexByte
 	ld	(ix + usbPipeBufferDataSize), a
+.endif
+	ld	ix, _rxBufferVars
+	call	_setAVar
 	jp	_rxBufferMenuShow
 
-_txTestDataData:
-	.db	"ABCDEFGHijklmnop"
-	.db	"01234567!@#$%^&*"
-	.db	"abcdefghIJKLMNOP"
-	.db	"XYZABCJKLMNBOPEQ"
-	
 _txTestData:
 	ld	hl, _txTestDataData
 	ld	de, hidControlTxBuffer
 	ld	bc, 64
 	ldir
 	ld	(hidTxPipe0Vars + usbPipeBufferWritePtr), de
-	
 	xor	a
 	call	GetTxPipePtr
 	push	hl
 	pop	ix
 	set	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
 	res	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
-
 	jp	_txBufferMenuShow
+
+_rxTestData:
+	ld	hl, _txTestDataData
+	ld	de, hidControlRxBuffer
+	ld	bc, 64
+	ldir
+	ld	(hidRxPipe0Vars + usbPipeBufferWritePtr), de
+	xor	a
+	call	GetRxPipePtr
+	push	hl
+	pop	ix
+	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
+	res	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
+	jp	_rxBufferMenuShow
+
 _txPacket:
 	call	ClearWind
 	xor	a
 	call	ContinueTx
 	call	GetKey
 	jp	_txBufferMenuShow
+
+_rxPacket:
+	call	ClearWind
+	xor	a
+	call	ContinueRx
+	call	GetKey
+	jp	_rxBufferMenuShow
+
+_txStart:
+	call	ClearWind
+	ld	hl, _startTxStr
+	call	DispHeaderText
+	ld	hl, _dataSizeStr
+	call	PutS
+	call	GetHexByte
+	ld	d, a
+	call	GetHexByte
+	ld	e, a
+	push	de
+	call	NewLine
+	ld	hl, _readStr
+	call	PutS
+	call	GetHexByte
+	ld	h, a
+	call	GetHexByte
+	ld	l, a
+	pop	bc
+	xor	a
+	call	StartTx
+	jp	_txBufferMenuShow
+
+_rxStart:
+	call	ClearWind
+	ld	hl, _startRxStr
+	call	DispHeaderText
+	ld	hl, _dataSizeStr
+	call	PutS
+	call	GetHexByte
+	ld	d, a
+	call	GetHexByte
+	ld	e, a
+	push	de
+	call	NewLine
+	ld	hl, _writeStr
+	call	PutS
+	call	GetHexByte
+	ld	h, a
+	call	GetHexByte
+	ld	l, a
+	pop	bc
+	xor	a
+	call	StartRx
+	jp	_rxBufferMenuShow
 
 
 
@@ -307,7 +381,15 @@ _selectStr:
 	.db	"Var #: ", 0
 _setVarStr:
 	.db	"SET VAR", 0
-
+_startTxStr:
+	.db	"START TX", 0
+_startRxStr:
+	.db	"START RX", 0
+_txTestDataData:
+	.db	"ABCDEFGHijklmnop"
+	.db	"01234567!@#$%^&*"
+	.db	"abcdefghIJKLMNOP"
+	.db	"XYZABCJKLMNBOPEQ"
 
 .ifndef	SMALL_FONT
 lineLength	.equ	8

@@ -733,8 +733,9 @@ StartRx:
 ;  - HL
 ;  - IX
 	ld	b, a
-	call	FlushTxFifo
+	call	FlushRxFifo
 	ld	a, b
+	ex	de, hl
 	call	GetRxPipePtr
 	push	hl
 	pop	ix
@@ -863,6 +864,7 @@ StartTx:
 	ld	b, a
 	call	FlushTxFifo
 	ld	a, b
+	ex	de, hl
 	call	GetTxPipePtr
 	push	hl
 	pop	ix

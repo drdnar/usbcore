@@ -226,7 +226,7 @@ PutS:
 ; Displays a string.  If the string contains control codes, those codes are
 ; parsed.
 ; Input:
-;  - DEHL: String to show
+;  - HL: String to show
 ; Output:
 ;  - String shown
 ;  - HL advanced to the byte after the null terminator.
