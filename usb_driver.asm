@@ -900,25 +900,30 @@ ContinueTx:
 ;  - HL
 ;  - IX
 	push	af
-	call	GetTxPipePtr
-	
 	ld	a, 'x'
 	call	PutC
-	
+	pop	af
+
+	; Get pointer to vars
+	push	af
+	call	GetTxPipePtr
 	pop	af
 	push	hl
 	pop	ix
+	; If buffer is empty, can't send any data
+	or	a
 	bit	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
 	ret	nz
 _continueTxSendThing:
 	set	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
 	out	(pUsbIndex), a
-	
+
 	push	af
 	ld	a, 'X'
 	call	PutC
 	pop	af
-	
+
+	; Is pipe ready to send more data?
 	ld	b, txCsrTxPktRdy
 	or	a
 	jr	nz, {@}
@@ -929,41 +934,61 @@ _continueTxSendThing:
 	and	b
 	ret	nz	; Error, return NC
 .endif
+	; Figure out if there is enough data for a full packet
 	call	GetBufferReadByteCount
 	
 	call	DispHL
 	
-	ld	a, (ix + usbPipeConfig)
+	ld	a, h
+	or	a
+	jr	z, {@}
+	ld	l, 255
+@:	ld	a, (ix + usbPipeConfig)
 	and	usbPipeMaxPacketMask
 	add	a, a
 	add	a, a
 	add	a, a
+	
+	push	af
+	ld	a, ','
+	call	PutC
+	pop	af
+	call	DispByte
+
+	ld	d, csr0TxPktRdy
+	cp	l
+	jr	z, {@}
+	jr	c, _continueTxEnoughData
+	; Not enough data for a full packet. Should we send a partial packet?
+	ld	a, (ix + usbPipeBufferDataSize + 1)
+	or	a
+	call	nz, Panic
+	ld	a, (ix + usbPipeBufferDataSize)
+	cp	l
+	jr	z, {@}
+	call	c, Panic
+	or	a
+	ret
+@:	ld	d, csr0TxPktRdy | csr0DataEnd
+_continueTxEnoughData:
+	; If you reset usbPipeFlagBufferEmptyB but set DataSize to 0 and have
+	; no data in the buffer, you can force sending a null packet.
+	or	a
+	jr	z, _continueTxSendEmpty
+	ld	b, a
 	ld	e, a
 	ld	d, 0
-	ex	de, hl
-	call	DispHL
-	cphlde
-	ld	d, csr0TxPktRdy
-	jr	c, {@}	; if max_packet_size >= bytesRemaining then do termVal = csr0TxPktRdy | csr0DataEnd if max_packet_size ~= bytesRemaining then do if write_ptr ~= end_of_buffer then do return endif endif endif
-	ex	de, hl
-	ld	d, csr0TxPktRdy | csr0DataEnd
-	jr	z, {@}
-	ld	l, (ix + usbPipeBufferPtr)
-	ld	h, (ix + usbPipeBufferPtr + 1)
-	ld	c, (ix + usbPipeBufferDataSize)
-	ld	b, (ix + usbPipeBufferDataSize + 1)
-	add	hl, bc
-	ld	c, (ix + usbPipeBufferWritePtr)
-	ld	b, (ix + usbPipeBufferWritePtr + 1)
+	ld	l, (ix + usbPipeBufferDataSize)
+	ld	h, (ix + usbPipeBufferDataSize + 1)
 	or	a
-	sbc	hl, bc
-	jr	nz, _continueTxNotEnoughDataToSend	; Save a byte. . . .
-@:	
-	ld	a, 'Q'
+	sbc	hl, de
+	call	c, Panic
+	ld	(ix + usbPipeBufferDataSize), l
+	ld	(ix + usbPipeBufferDataSize + 1), h
+	
+	ld	a, 'd'
 	call	PutC
-	ld	a, '!'
-	call	PutC
-	ld	a, e
+	ld	a, b
 	call	DispByte
 	ld	a, ':'
 	call	PutC
@@ -973,27 +998,14 @@ _continueTxSendThing:
 	in	a, (pUsbIndex)
 	add	a, pUsbPipe
 	ld	c, a
-	ld	a, e
-	or	a
-	jr	z, _continueTxSendEmpty
-.ifdef	NEVER
-	ld	b, (ix + usbPipeBufferReadPtr + 2)
-@:	call	GetByte
-	inc	hl
-	out	(c), a
-	dec	e
-	jr	nz, {-1@}
-.else
-	ld	b, e
 .ifndef	UNIT_TESTS
 	otir
 .else
 @:	ld	a, (hl)
-	call	DispByte
 	inc	hl
+	call	DispByte
 	dec	b
 	jr	nz, {-1@}
-.endif
 .endif
 _continueTxSendEmpty:
 
@@ -1004,31 +1016,22 @@ _continueTxSendEmpty:
 	or	a
 	jr	nz, {@}
 	ld	a, d
-;	out	(pUsbCsr0), a
+;	out	(pUsbCsr0), a	; same port as pUsbTxCsr
 	jr	{2@}
 @:	ld	a, txCsrTxPktRdy
 @:	out	(pUsbTxCsr), a
 	
 	ld	a, 'Z'
 	call	PutC
-
+	
 	ld	(ix + usbPipeBufferReadPtr), l
 	ld	(ix + usbPipeBufferReadPtr + 1), h
-	ld	e, (ix + usbPipeBufferWritePtr)
-	ld	d, (ix + usbPipeBufferWritePtr + 1)
-	cphlde
-_continueTxNotEnoughDataToSend:
-
-	ld	a, 'j'
-	call	PutC
-
-	scf	; Done, return C
+	ld	c, (ix + usbPipeBufferWritePtr)
+	ld	b, (ix + usbPipeBufferWritePtr + 1)
+	cphlbc
+	scf
 	ret	nz
 	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
-	
-	ld	a, 'J'
-	call	PutC
-	
 	ret
 
 

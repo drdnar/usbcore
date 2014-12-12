@@ -60,7 +60,7 @@ _txBufferMenu:
 	.db	"1. Flush buffer", chNewLine
 	.db	"2. Add byte", chNewLine
 	.db	"3. Remove byte", chNewLine
-	.db	"4. Set data size", chNewLine
+	.db	"4. Set var", chNewLine
 	.db	"5. TX packet", chNewLine
 	.db	chNewLine
 	.db	"F1: Test data"
@@ -72,7 +72,7 @@ _txBufferMenu:
 	.db	sk3
 	.dw	_txRemoveByte
 	.db	sk4
-	.dw	_txSetDataSize
+	.dw	_txSetVar
 	.db	sk5
 	.dw	_txPacket
 	.db	skYEqu
@@ -184,7 +184,8 @@ _rxRemoveByte:
 	call	GetKey
 	jp	_rxBufferMenuShow
 
-_txSetDataSize:
+_txSetVar:
+.ifdef	NEVER
 	call	ClearWind
 	ld	hl, _dataSizeStr
 	call	PutS
@@ -196,6 +197,9 @@ _txSetDataSize:
 	ld	(ix + usbPipeBufferDataSize + 1), a
 	call	GetHexByte
 	ld	(ix + usbPipeBufferDataSize), a
+.endif
+	ld	ix, _txBufferVars
+	call	_setAVar
 	jp	_txBufferMenuShow
 	
 _rxSetDataSize:
@@ -284,7 +288,7 @@ _writeStr:
 _readStr:
 	.db	"Read ptr: ", 0
 _flagsConfStr:
-	.db	"Flags/Conf: ", 0
+	.db	"Conf/Flags: ", 0
 _dataProcCbStr:
 	.db	"Proc Cb: ", 0
 _dataSizeStr:
@@ -299,6 +303,10 @@ _readCountStr:
 	.db	"Read count: ", 0
 _valueStr:
 	.db	"Value: ", 0
+_selectStr:
+	.db	"Var #: ", 0
+_setVarStr:
+	.db	"SET VAR", 0
 
 
 .ifndef	SMALL_FONT
@@ -309,7 +317,71 @@ lineLength	.equ	16
 
 
 
-
+_setAVar:
+	call	ClearWind
+	ld	hl, _setVarStr
+	call	DispHeaderText
+	ld	b, (ix)
+	ld	c, b
+	push	ix
+	inc	ix
+@:	ld	a, c
+	sub	b
+	call	DispByte
+	ld	a, '.'
+	push	bc
+	call	PutC
+	call	PutSpace
+	ld	l, (ix)
+	inc	ix
+	ld	h, (ix)
+	inc	ix
+	call	PutS
+	ld	l, (ix)
+	inc	ix
+	ld	h, (ix)
+	inc	ix
+	ld	a, (hl)
+	inc	hl
+	ld	h, (hl)
+	ld	l, a
+	call	DispHL
+	call	NewLine
+	pop	bc
+	djnz	{-1@}
+	pop	ix
+	ld	hl, _selectStr
+	call	PutS
+	call	GetHexByte
+	ld	b, (ix)
+	inc	ix
+	cp	b
+	ret	nc
+	push	af
+	call	NewLine
+	ld	hl, _valueStr
+	call	PutS
+	pop	af
+	inc	ix
+	inc	ix
+	or	a
+	jr	z, {2@}
+	ld	b, a
+@:	inc	ix
+	inc	ix
+	inc	ix
+	inc	ix
+	djnz	{-1@}
+@:	call	GetHexByte
+	ld	l, (ix)
+	ld	h, (ix + 1)
+	inc	hl
+	ld	(hl), a
+	dec	hl
+	call	GetHexByte
+	ld	(hl), a
+	ret
+	
 _queueVars:
 	.db	2
 	.dw	_writeStr
