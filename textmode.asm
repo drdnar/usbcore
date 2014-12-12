@@ -120,7 +120,7 @@ SetFullScrnWind:
 ;  - BC
 	ld	bc, 0
 	ld	(windTop), bc
-	ld	bc, (textCols) * 256 + textRows
+	ld	bc, ((textCols - 0) * 256) + textRows
 	ld	(windBottom), bc
 	ret
 

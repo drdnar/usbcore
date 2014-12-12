@@ -44,6 +44,9 @@ _queueTests:
 
 _bufferTests:
 	.db	"BUFFER TESTS", 0
+;	.db	"12345678901234567890123456789012345678901234567890123"
+;	.db	"1234567890123456789012345665432109876543210987654321 "
+;	.db	"12345678901234567890123456 65432109876543210987654321", chNewLine
 	.db	"1. TX Buffer", chNewLine
 	.db	"2. RX Buffer", chNewLine
 	.db	0
@@ -57,6 +60,9 @@ _bufferTests:
 
 _txBufferMenu:
 	.db	"TX BUFFER TESTS", 0
+;	.db	"12345678901234567890123456789012345678901234567890123"
+;	.db	"1234567890123456789012345665432109876543210987654321 "
+;	.db	"12345678901234567890123456 65432109876543210987654321", chNewLine
 	.db	"1. Flush buffer", chNewLine
 	.db	"2. Add byte", chNewLine
 	.db	"3. Remove byte", chNewLine
@@ -92,6 +98,8 @@ _rxBufferMenu:
 	.db	"4. Set var", chNewLine
 	.db	"5. Continue RX", chNewLine
 	.db	"6. Start RX", chNewLine
+	.db	chNewLine
+	.db	"F1: Test data"
 	.db	0
 	.db	sk1
 	.dw	_flushRxBuffer

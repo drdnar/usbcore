@@ -524,8 +524,9 @@ DispHeaderText:
 	ld	a, (windRight)
 	sub	b
 	srl	a
-	dec	a
 	srl	e
+	ld	b, 0
+	sbc	a, b
 	sub	e
 	ld	b, a
 	call	PutSpaces
