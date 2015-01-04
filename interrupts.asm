@@ -150,13 +150,6 @@ RealIsr:
 ;	call	PutC
 ;	pop	bc
 
-	; LD A, I only looks at IFF2, so when used in an ISR, it may indicate
-	; that interrupts are enabled, when they were actually disabled due to
-	; an interrupt being accepted.  Therefore, we must explicitly DI to
-	; make sure that any code that checks for interrupt-enable gets the
-	; right result.
-	di
-
 	call	USBactivityHook
 	pop	ix
 	pop	de
