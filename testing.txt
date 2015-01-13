@@ -1,0 +1,38 @@
+Unit testing:
+ - Init driver
+ - TX buffer
+ - RX buffer
+ - USB event queue
+
+
+Init driver
+ - Seems to get things going
+
+
+TX BUFFER: WORKS
+
+Possible crashing issue?
+NOT TESTED:
+ - If you have less than DataSize bytes in buffer and size is not multiple of
+   packet size, does it send a partial packet?
+
+ - Flush buffer: WORKS
+    - Should reset certain flags (TODO: Which?)
+    - Should reset read ptr and write ptr
+    - Should reset data size
+ - Add byte: WORKS
+    - Should reset buffer empty flag
+    - Does not check DataSize var
+    - WriteByteCount correctly returns delta between DataSize and bytes written
+ - Remove byte: WORKS
+    - Should set buffer empty flag if equals write ptr
+    - Does not check DataSize var
+    - ReadByteCount correctly returns delta between write and read ptrs
+ - Continue TX: WORKS
+    - Automatically breaks up TX into full and partial packets
+ - Start TX: WORKS
+    - Automatically starts TX
+
+
+RX BUFFER: DOES NOT WORK
+

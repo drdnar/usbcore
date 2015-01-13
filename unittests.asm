@@ -146,6 +146,7 @@ _txAddByte:
 	ld	b, a
 	xor	a
 	call	WriteTxBufferByte
+	call	GetKey
 	jp	_txBufferMenuShow
 
 _rxAddByte:
@@ -163,6 +164,7 @@ _rxAddByte:
 	call	PutS
 	call	GetHexByte
 	call	WriteBufferByte
+	call	GetKey
 	jp	_rxBufferMenuShow
 
 _txRemoveByte:
@@ -250,6 +252,7 @@ _txTestData:
 	pop	ix
 	set	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
 	res	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
+	call	GetKey
 	jp	_txBufferMenuShow
 
 _rxTestData:
@@ -264,6 +267,7 @@ _rxTestData:
 	pop	ix
 	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
 	res	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
+	call	GetKey
 	jp	_rxBufferMenuShow
 
 _txPacket:
@@ -301,6 +305,7 @@ _txStart:
 	pop	bc
 	xor	a
 	call	StartTx
+	call	GetKey
 	jp	_txBufferMenuShow
 
 _rxStart:
@@ -324,6 +329,7 @@ _rxStart:
 	pop	bc
 	xor	a
 	call	StartRx
+	call	GetKey
 	jp	_rxBufferMenuShow
 
 

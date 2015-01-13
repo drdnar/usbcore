@@ -732,15 +732,16 @@ StartRx:
 ;  - DE
 ;  - HL
 ;  - IX
-	ld	b, a
+	push	af
 	call	FlushRxFifo
-	ld	a, b
-	ex	de, hl
+	pop	af
+	push	af
+	ex	de, hl	; This won't work if E = RAM page, because HL is destroyed
 	call	GetRxPipePtr
 	push	hl
 	pop	ix
 	ex	de, hl
-	ld	a, b
+	pop	af
 	res	usbPipeFlagBufferFullB, (ix + usbPipeFlags)
 	set	usbPipeFlagBufferEmptyB, (ix + usbPipeFlags)
 	set	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
@@ -901,11 +902,12 @@ ContinueTx:
 ;  - DE
 ;  - HL
 ;  - IX
+.ifdef	UNIT_TESTS
 	push	af
 	ld	a, 'x'
 	call	PutC
 	pop	af
-
+.endif
 	; Get pointer to vars
 	push	af
 	call	GetTxPipePtr
@@ -919,12 +921,12 @@ ContinueTx:
 _continueTxSendThing:
 	set	usbPipeFlagActiveXmitB, (ix + usbPipeFlags)
 	out	(pUsbIndex), a
-
+.ifdef	UNIT_TESTS
 	push	af
 	ld	a, 'X'
 	call	PutC
 	pop	af
-
+.endif
 	; Is pipe ready to send more data?
 	ld	b, txCsrTxPktRdy
 	or	a
@@ -938,9 +940,9 @@ _continueTxSendThing:
 .endif
 	; Figure out if there is enough data for a full packet
 	call	GetBufferReadByteCount
-	
+.ifdef	UNIT_TESTS
 	call	DispHL
-	
+.endif
 	ld	a, h
 	or	a
 	jr	z, {@}
@@ -950,13 +952,13 @@ _continueTxSendThing:
 	add	a, a
 	add	a, a
 	add	a, a
-	
+.ifdef	UNIT_TESTS
 	push	af
 	ld	a, ','
 	call	PutC
 	pop	af
 	call	DispByte
-
+.endif
 	ld	d, csr0TxPktRdy
 	cp	l
 	jr	z, {@}
@@ -987,14 +989,14 @@ _continueTxEnoughData:
 	call	c, Panic
 	ld	(ix + usbPipeBufferDataSize), l
 	ld	(ix + usbPipeBufferDataSize + 1), h
-	
+.ifdef	UNIT_TESTS
 	ld	a, 'd'
 	call	PutC
 	ld	a, b
 	call	DispByte
 	ld	a, ':'
 	call	PutC
-	
+.endif
 	ld	l, (ix + usbPipeBufferReadPtr)
 	ld	h, (ix + usbPipeBufferReadPtr + 1)
 	in	a, (pUsbIndex)
@@ -1010,10 +1012,10 @@ _continueTxEnoughData:
 	jr	nz, {-1@}
 .endif
 _continueTxSendEmpty:
-
+.ifdef	UNIT_TESTS
 	ld	a, 'z'
 	call	PutC
-
+.endif
 	in	a, (pUsbIndex)
 	or	a
 	jr	nz, {@}
@@ -1022,10 +1024,10 @@ _continueTxSendEmpty:
 	jr	{2@}
 @:	ld	a, txCsrTxPktRdy
 @:	out	(pUsbTxCsr), a
-	
+.ifdef	UNIT_TESTS
 	ld	a, 'Z'
 	call	PutC
-	
+.endif
 	ld	(ix + usbPipeBufferReadPtr), l
 	ld	(ix + usbPipeBufferReadPtr + 1), h
 	ld	c, (ix + usbPipeBufferWritePtr)
@@ -1138,7 +1140,6 @@ WriteTxBufferByte:
 	pop	ix
 	ld	a, b
 	call	WriteBufferByte
-	call	ContinueTx
 	pop	ix
 	pop	hl
 	pop	de
@@ -1270,6 +1271,8 @@ ReadBufferByte:
 ;------ GetBufferReadByteCount -------------------------------------------------
 GetBufferReadByteCount:
 ; Returns the number of bytes left to read in a buffer.
+; This value reflects the number of bytes actually present, not the number of
+; bytes implied by DataSize.
 ; Input:
 ;  - IX: Pointer to buffer's vars
 ; Output:
