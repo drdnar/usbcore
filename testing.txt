@@ -1,4 +1,6 @@
-Unit testing:
+Goal: MTP Link
+
+Function testing:
  - Init driver
  - TX buffer
  - RX buffer
@@ -36,3 +38,9 @@ NOT TESTED:
 
 RX BUFFER: DOES NOT WORK
 
+ - Flush buffer
+    - Should reset certain flags (TODO: Which?)
+    - Should reset read ptr and write ptr
+    - should reset data size
+ - Add byte
+    - 

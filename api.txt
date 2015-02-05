@@ -1,0 +1,41 @@
+
+
+
+                                  USB Core API
+
+
+
+====== Overview ================================================================
+
+    USB Core is an interrupt-driven peripheral-mode USB driver.  As a peripheral
+mode driver, USB Core only supports functioning as a peripheral connected to
+another device; you cannot use USB Core to connected to keyboards and such.  As
+an interrupt-driver driver, instead of using fixed delays to control the timing
+of sending packets and checking for received packets, interrupts tell you when
+operations are complete and therefore to send or process data.
+
+
+
+====== Usage ===================================================================
+
+    USB Core must be compiled with its main variables fixed at compile time.  To
+start peripheral mode, build a set of USB descriptors and initial variables, and
+pass them to the SetupDriver function.  Make sure your custom interrupt handler
+checks pUsbCoreIntrStatus and, if it shows a USB interrupt pending, pass the
+value to HandleUsbInterrupt in A.  Then call EnableUSB when you are ready to
+being USB functions.  From there, USB Core will automatically handle setting up
+ports when the calculator is connected, and will issue events to the proper pipe
+callbacks on-interrupt.
+
+    HandleUsbInterrupt will automatically process all USB interrupts.
+HandleUsbInterrupt will re-enable interrupts as soon as possible after entry, to
+ensure that you do not lose any interrupts such as timer ticks.  This means that
+HandleUsbInterrupt will re-enable interrupts before it is finished processing.
+Should multiple interrupts be pending, HandleUsbInterrupt queues them, and if
+more USB interrupts trigger while processing, HandleUsbInterrupt queues them and
+will proceed to process them in-order.  HandleUsbInterrupt handles its own
+reentrancy concerns; if your interrupt code has reentrancy concerns, you must
+address them.  Before calling HandleUsbInterrupt, you must push, in order, AF,
+HL, BC, DE, and IX, and pop them in reverse-order when HandleUsbInterrupt
+returns.  Additionally, for reentrancy reasons, HandleUsbInterrupt disables
+interrupts between completing its work and returning, so you must EI again.
